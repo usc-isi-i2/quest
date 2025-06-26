@@ -1,0 +1,17 @@
+# common
+PyYaml
+natsort
+loguru
+
+# LLM
+openai
+pydantic_settings
+numpy
+tiktoken
+
+
+
+# optional packages for testing and package management
+pytest
+pre-commit
+black
