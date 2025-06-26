@@ -14,8 +14,9 @@ class QuestionGenerator(BaseAgent[tuple[list[str], str]]):
         mode: str = "default",  # default | cot | fewshot
         few_shot_candidates: list | None = None,
     ) -> tuple[list[str], str]:
+        # Base prompt (for final example)
         if mode == "cot":
-            question_generation_prompt = f"""article: {context}
+            base_prompt = f"""article: {context}
 Student is currently reading the sentence: {anchor}.
 
 First, think explicitly what information should be given to the student to help them understand the sentence better.
@@ -26,7 +27,7 @@ Output in following JSON format:
 "question": < question >
 }}"""
         else:
-            question_generation_prompt = f"""article: {context}
+            base_prompt = f"""article: {context}
 Student is currently reading the sentence: {anchor}.
 Generate a question that helps the student understand the sentence better.
 Output in following JSON format:
@@ -34,12 +35,25 @@ Output in following JSON format:
 "question": question
 }}"""
 
-        messages = []
+        # Build few-shot message if applicable
+        full_prompt = ""
         if mode == "fewshot" and few_shot_candidates:
-            for candidate in few_shot_candidates:
-                for message in candidate["messages"]:
-                    messages.append(LLMMessage(role=message["role"], content=message["content"]))
-        messages.append(LLMMessage(role="user", content=question_generation_prompt))
+            for example in few_shot_candidates:
+                few_context = example["context"]
+                few_anchor = example["anchor"]
+                few_question = example["question"]
+
+                full_prompt += f"""article: {few_context}
+Student is currently reading the sentence: {few_anchor}.
+Generate a question that helps the student understand the sentence better.
+Output in following JSON format:
+{{"question": "{few_question}"}}
+
+"""
+
+        full_prompt += base_prompt
+
+        messages = [LLMMessage(role="user", content=full_prompt)]
 
         questions = []
         for _ in range(num_questions):
@@ -49,4 +63,4 @@ Output in following JSON format:
             )
             questions.append(response.content["question"])
 
-        return questions, question_generation_prompt
+        return questions, base_prompt

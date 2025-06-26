@@ -48,12 +48,6 @@ def main():
 
     for subject in args.subject:
         few_shot_candidates = []
-        if args.mode == "fewshot":
-            all_candidates = read_jsonl("data/data_post_processed.jsonl")
-            few_shot_candidates = [c for c in all_candidates if c["subject"] == subject]
-            random.shuffle(few_shot_candidates)
-            few_shot_candidates = few_shot_candidates[:5]
-
         filtered_data = [item for item in data if item["subject"] == subject]
         if not filtered_data:
             print(f"No data found for subject '{subject}'")
@@ -61,6 +55,26 @@ def main():
 
         filtered_data = sorted(filtered_data, key=lambda x: x["chapter"])
         test_filtered_data = filtered_data[-5:]
+        train_filtered_data = filtered_data[:-5]
+
+        if args.mode == "fewshot":
+            few_shot_raw_examples = []
+            for d in train_filtered_data:
+                sections = d["llm_parsed_results"]["sections"]
+                questions = d["llm_parsed_results"]["questions"]
+                for sec_id, sec in sections.items():
+                    anchor = sec["content"]
+                    context = "\n".join([s["content"] for i, s in sections.items() if int(i) < int(sec_id)])
+                    for q in questions.values():
+                        few_shot_raw_examples.append(
+                            {
+                                "context": context,
+                                "anchor": anchor,
+                                "question": q["question"],
+                            }
+                        )
+            random.shuffle(few_shot_raw_examples)
+            few_shot_candidates = few_shot_raw_examples[:5]
 
         for test_data in test_filtered_data:
             chapter = test_data["chapter"]
