@@ -115,3 +115,71 @@ Outputs:
 
 * `output/{model_name}/{mode}_performance_results.jsonl`: utility scores for each chapter
 * `output/{model_name}/{mode}_qa_pairs.jsonl`: generated question–answer pairs
+
+### 🔧 Inference with fine-tuned SFT / QUEST model
+
+After running supervised fine-tuning (see [Training](#training)), you can use the trained model by first loading its name from the metadata file:
+
+```python
+# Load fine-tuned model name
+import json
+metadata = json.load(open("metadata/train_metadata_all_sft.json")) # SFT cross-subject setting.
+model_name = metadata["fine_tuned_model"]
+print(model_name)  # e.g., ft:gpt-4o-mini:your-team:custom-id
+```
+
+Then run:
+
+```bash
+python run_inference.py \
+  --subject chemistry \
+  --qg_model_name <fine_tuned_model_name> \
+  --evaluate_model_name gpt-4o-mini \
+  --mode default
+```
+
+---
+
+## 🏋️ Training
+
+We provide two training modes:
+
+### 🧪 1. **Supervised Fine-Tuning (SFT)**
+
+We fine-tune a base LLM (e.g., `gpt-4o-mini`) using human-authored exam questions from textbook sections.
+The prompt asks the model to generate a question that helps a student understand a specific sentence in a passage.
+
+**To prepare and run SFT training:**
+
+```bash
+python run_train_sft.py --subject all --model_name gpt-4o-mini-2024-07-18
+```
+
+* You can replace `all` with specific subjects like `--subject chemistry`.
+  * `all` is for `cross-subject` setting.
+* The script will create training data from all but the last 5 chapters of each subject.
+* Metadata and fine-tuned model information is stored under `metadata/train_metadata_*_sft.json`.
+
+**Training prompt format:**
+
+```
+article: <full previous context>
+Student is currently reading the sentence: <anchor sentence>.
+Generate a question that helps the student understand the sentence better.
+Output in following JSON format:
+{
+    "question": question
+}
+```
+
+Each fine-tuning example is a chat message pair:
+
+* `user`: the prompt above
+* `assistant`: the expected `{"question": ...}` response
+
+Training data is saved as:
+
+```
+metadata/train_data_{subjects}_sft.jsonl
+```
+
