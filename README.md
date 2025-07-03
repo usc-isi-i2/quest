@@ -328,3 +328,20 @@ python run_eval.py \
   --include_saliency \
   --include_eig
 ```
+
+---
+
+## 📌 Citation
+
+If you find this work useful in your research, please cite:
+
+```bibtex
+@article{lee2025good,
+  title={What is a good question? utility estimation with llm-based simulations},
+  author={Lee, Dong-Ho and Cho, Hyundong and May, Jonathan and Pujara, Jay},
+  journal={arXiv preprint arXiv:2502.17383},
+  year={2025}
+}
+```
+
+---
