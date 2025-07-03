@@ -48,6 +48,7 @@ def main():
     qa_output_file = f"output/{args.qg_model_name}/{subject}_{args.mode}_qa_pairs.jsonl"
     question_generator_performances = []
     qa_pairs = []
+    few_shot_candidates = []
 
     filtered_data = [item for item in data if item["subject"] == subject]
     if not filtered_data:

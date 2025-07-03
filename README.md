@@ -246,21 +246,47 @@ This helps analyze *why* certain models lead to better comprehension outcomes by
 
 ---
 
-### 🔍 To run evaluation:
+### ⚙️ Options
 
-```bash
-python run_eval.py \
-  --qa_file output/gpt-4o-mini/chemistry_fewshot_qa_pairs.jsonl \
-  --model_name gpt-4o-mini
-```
-
-This will evaluate every question–answer pair in the input JSONL file and produce corresponding scores.
+| Argument             | Description                                                            |
+| -------------------- | ---------------------------------------------------------------------- |
+| `--qa_file`          | Path to the generated QA pairs file (from `run_inference.py`)          |
+| `--model_name`       | Model used for utility simulation and scoring (default: `gpt-4o-mini`) |
+| `--include_saliency` | If set, computes saliency scores via LLM                               |
+| `--include_eig`      | If set, computes Expected Information Gain (EIG) via LLM logprobs      |
+| `--output_dir`       | Directory to save the evaluation results (default: `q_metrics/`)       |
 
 ---
 
-### 📥 Input
+### 📥 Input Format
 
-* `output/{model_name}/{mode}_qa_pairs.jsonl`: generated questions and answers from `run_inference.py`
+Each input file should be a `.jsonl` file with entries like:
+
+```json
+{
+  "subject": "chemistry",
+  "chapter": "m50984",
+  "section": 3,
+  "question": "Why is the atomic radius smaller across a period?",
+  "answer": "Because the increased nuclear charge pulls electrons closer to the nucleus."
+}
+```
+
+These are typically generated from:
+
+```text
+output/{model_name}/{subject}_{mode}_qa_pairs.jsonl
+```
+
+---
+
+### 📤 Output
+
+Evaluated metrics are saved in a single consolidated file:
+
+```text
+q_metrics/{subject}_{mode}_question_metrics.jsonl
+```
 
 Each entry includes:
 
@@ -269,39 +295,40 @@ Each entry includes:
   "subject": "chemistry",
   "chapter": "m50984",
   "section": 3,
-  "question": "...",
-  "answer": "..."
-}
-```
-
----
-
-### 📤 Output
-
-Saved in `metrics/` with the same `{model}_{mode}` prefix. For example:
-
-| Metric   | Output File                                    | Description                                             |
-| -------- | ---------------------------------------------- | ------------------------------------------------------- |
-| Utility  | `q_metrics/gpt-4o-mini_fewshot_utility.jsonl`  | Simulated learning gain from each question              |
-| Saliency | `q_metrics/gpt-4o-mini_fewshot_saliency.jsonl` | Relevance & centrality of question to the given article |
-| EIG      | `q_metrics/gpt-4o-mini_fewshot_eig.jsonl`      | Expected information gain from seeing the answer        |
-
-Each output file appends the respective score to each entry:
-
-```json
-{
-  "subject": "chemistry",
-  "chapter": "m50984",
-  "section": 3,
-  "question": "...",
-  "answer": "...",
+  "question": "Why is the atomic radius smaller across a period?",
+  "answer": "Because the increased nuclear charge pulls electrons closer to the nucleus.",
   "utility": 0.41,
   "saliency": 4,
   "eig": 0.72
 }
 ```
 
+If `--include_saliency` or `--include_eig` is not used, the corresponding fields will be omitted.
+
 ---
 
+### ✅ Example Usage
 
-## 📌 Citation
+Evaluate utility only:
+
+```bash
+python run_eval.py \
+  --qa_file output/gpt-4o-mini/chemistry_fewshot_qa_pairs.jsonl
+```
+
+Evaluate utility + saliency:
+
+```bash
+python run_eval.py \
+  --qa_file output/gpt-4o-mini/chemistry_fewshot_qa_pairs.jsonl \
+  --include_saliency
+```
+
+Evaluate utility + saliency + EIG:
+
+```bash
+python run_eval.py \
+  --qa_file output/gpt-4o-mini/chemistry_fewshot_qa_pairs.jsonl \
+  --include_saliency \
+  --include_eig
+```
