@@ -14,7 +14,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="QUEST-based rejection sampling and fine-tuning.")
 
     parser.add_argument("--model_name", type=str, default="gpt-4o-mini-2024-07-18", help="Base model to fine-tune")
-    parser.add_argument("--subject", nargs="+", required=True, help="Subject(s) to include or 'all'")
+    parser.add_argument("--subject", type=str, required=True, help="Subject to include (e.g., 'chemistry') or 'all'")
     parser.add_argument("--iterations", type=int, default=1, help="Number of rejection sampling + fine-tune iterations")
     parser.add_argument(
         "--threshold", type=float, default=0.1, help="Minimum utility score for training data inclusion"
@@ -40,9 +40,13 @@ def main():
     args = parse_args()
     data = read_jsonl("data/data.jsonl")
 
-    if args.subject == ["all"]:
-        args.subject = sorted(set(item["subject"] for item in data))
-        print(f"Using all subjects: {args.subject}")
+    # subject handling
+    if args.subject == "all":
+        subjects = sorted(set(item["subject"] for item in data))
+        print(f"Using all subjects: {subjects}")
+    else:
+        subjects = [args.subject]
+        print(f"Using subject: {args.subject}")
 
     current_model_name = args.model_name
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
@@ -57,7 +61,7 @@ def main():
 
         high_utility_questions = []
 
-        for subject in args.subject:
+        for subject in subjects:
             subject_data = [d for d in data if d["subject"] == subject]
             subject_data = sorted(subject_data, key=lambda x: x["chapter"])
             train_data = subject_data[:-5]

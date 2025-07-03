@@ -17,7 +17,7 @@ def parse_args():
     parser.add_argument(
         "--mode", type=str, choices=["default", "cot", "fewshot"], default="default", help="Prompting strategy"
     )
-    parser.add_argument("--subject", nargs="+", required=True, help="Subjects to process")
+    parser.add_argument("--subject", type=str, required=True, help="Single subject to process (e.g., chemistry)")
     parser.add_argument("--use_document_for_simulate", action="store_true", help="Use document sections in simulation")
     parser.add_argument("--num_questions_per_section", type=int, default=1, help="Questions to generate per section")
 
@@ -40,113 +40,114 @@ def main():
 
     # Read data
     data = read_jsonl("data/data.jsonl")
+    subject = args.subject
 
-    out_file = f"output/{args.qg_model_name}/{args.mode}_performance_results.jsonl"
-    qa_output_file = f"output/{args.qg_model_name}/{args.mode}_qa_pairs.jsonl"
+    # Create output paths
+    os.makedirs(f"output/{args.qg_model_name}", exist_ok=True)
+    out_file = f"output/{args.qg_model_name}/{subject}_{args.mode}_performance_results.jsonl"
+    qa_output_file = f"output/{args.qg_model_name}/{subject}_{args.mode}_qa_pairs.jsonl"
     question_generator_performances = []
     qa_pairs = []
 
-    for subject in args.subject:
-        few_shot_candidates = []
-        filtered_data = [item for item in data if item["subject"] == subject]
-        if not filtered_data:
-            print(f"No data found for subject '{subject}'")
-            continue
+    filtered_data = [item for item in data if item["subject"] == subject]
+    if not filtered_data:
+        print(f"No data found for subject '{subject}'")
+        return
 
-        filtered_data = sorted(filtered_data, key=lambda x: x["chapter"])
-        test_filtered_data = filtered_data[-5:]
-        train_filtered_data = filtered_data[:-5]
+    filtered_data = sorted(filtered_data, key=lambda x: x["chapter"])
+    test_filtered_data = filtered_data[-5:]
+    train_filtered_data = filtered_data[:-5]
 
-        if args.mode == "fewshot":
-            few_shot_raw_examples = []
-            for d in train_filtered_data:
-                sections = d["llm_parsed_results"]["sections"]
-                questions = d["llm_parsed_results"]["questions"]
-                for sec_id, sec in sections.items():
-                    anchor = sec["content"]
-                    context = "\n".join([s["content"] for i, s in sections.items() if int(i) < int(sec_id)])
-                    for q in questions.values():
-                        few_shot_raw_examples.append(
-                            {
-                                "context": context,
-                                "anchor": anchor,
-                                "question": q["question"],
-                            }
-                        )
-            random.shuffle(few_shot_raw_examples)
-            few_shot_candidates = few_shot_raw_examples[:5]
-
-        for test_data in test_filtered_data:
-            chapter = test_data["chapter"]
-            llm_parsing = test_data["llm_parsed_results"]
-            exam_questions = llm_parsing["questions"]
-
-            context = ""
-            questions_by_section = {}
-
-            for i in range(1, len(llm_parsing["sections"]) + 1):
-                anchor = llm_parsing["sections"][str(i)]["content"]
-
-                generated_questions, _ = question_generator.generate(
-                    anchor=anchor,
-                    context=context,
-                    num_questions=args.num_questions_per_section,
-                    mode=args.mode,
-                    few_shot_candidates=few_shot_candidates if args.mode == "fewshot" else None,
-                )
-                generated_qa_pairs = answer_generator.generate(
-                    anchor=anchor, context=context, questions=generated_questions
-                )
-
-                context += f"\n{anchor}"
-                questions_by_section[str(i)] = generated_qa_pairs
-
-                for qa in generated_qa_pairs:
-                    qa_pairs.append(
+    if args.mode == "fewshot":
+        few_shot_raw_examples = []
+        for d in train_filtered_data:
+            sections = d["llm_parsed_results"]["sections"]
+            questions = d["llm_parsed_results"]["questions"]
+            for sec_id, sec in sections.items():
+                anchor = sec["content"]
+                context = "\n".join([s["content"] for i, s in sections.items() if int(i) < int(sec_id)])
+                for q in questions.values():
+                    few_shot_raw_examples.append(
                         {
-                            "subject": subject,
-                            "chapter": chapter,
-                            "section": i,
-                            "question": qa["question"],
-                            "answer": qa["answer"],
+                            "context": context,
+                            "anchor": anchor,
+                            "question": q["question"],
                         }
                     )
+        random.shuffle(few_shot_raw_examples)
+        few_shot_candidates = few_shot_raw_examples[:5]
 
-            for section_id, questions in questions_by_section.items():
-                print(f"\nSection {section_id}:")
-                for q in questions:
-                    print(f"  Question: {q['question']}")
-                    print(f"  Answer: {q['answer']}")
+    for test_data in test_filtered_data:
+        chapter = test_data["chapter"]
+        llm_parsing = test_data["llm_parsed_results"]
+        exam_questions = llm_parsing["questions"]
 
-            if args.use_document_for_simulate:
-                _, all_score, baseline_score = simulator.generate(
-                    eval_questions=exam_questions,
-                    sections=llm_parsing["sections"],
-                    generated_questions=questions_by_section,
-                    test=True,
-                )
-            else:
-                _, all_score, baseline_score = simulator.generate(
-                    eval_questions=exam_questions,
-                    sections={},
-                    generated_questions=questions_by_section,
-                    test=True,
-                )
+        context = ""
+        questions_by_section = {}
 
-            question_generator_performances.append(
-                {
-                    "subject": subject,
-                    "chapter": chapter,
-                    "all_score": all_score,
-                    "baseline_score": baseline_score,
-                    "gain": all_score - baseline_score,
-                }
+        for i in range(1, len(llm_parsing["sections"]) + 1):
+            anchor = llm_parsing["sections"][str(i)]["content"]
+
+            generated_questions, _ = question_generator.generate(
+                anchor=anchor,
+                context=context,
+                num_questions=args.num_questions_per_section,
+                mode=args.mode,
+                few_shot_candidates=few_shot_candidates if args.mode == "fewshot" else None,
             )
+            generated_qa_pairs = answer_generator.generate(
+                anchor=anchor, context=context, questions=generated_questions
+            )
+
+            context += f"\n{anchor}"
+            questions_by_section[str(i)] = generated_qa_pairs
+
+            for qa in generated_qa_pairs:
+                qa_pairs.append(
+                    {
+                        "subject": subject,
+                        "chapter": chapter,
+                        "section": i,
+                        "question": qa["question"],
+                        "answer": qa["answer"],
+                    }
+                )
+
+        for section_id, questions in questions_by_section.items():
+            print(f"\nSection {section_id}:")
+            for q in questions:
+                print(f"  Question: {q['question']}")
+                print(f"  Answer: {q['answer']}")
+
+        if args.use_document_for_simulate:
+            _, all_score, baseline_score = simulator.generate(
+                eval_questions=exam_questions,
+                sections=llm_parsing["sections"],
+                generated_questions=questions_by_section,
+                test=True,
+            )
+        else:
+            _, all_score, baseline_score = simulator.generate(
+                eval_questions=exam_questions,
+                sections={},
+                generated_questions=questions_by_section,
+                test=True,
+            )
+
+        question_generator_performances.append(
+            {
+                "subject": subject,
+                "chapter": chapter,
+                "all_score": all_score,
+                "baseline_score": baseline_score,
+                "gain": all_score - baseline_score,
+            }
+        )
 
     write_jsonl(question_generator_performances, out_file)
     write_jsonl(qa_pairs, qa_output_file)
-    print(f"\nWrote final performance to: {out_file}")
-    print(f"Wrote generated question-answer pairs to: {qa_output_file}")
+    print(f"\n✅ Wrote performance to: {out_file}")
+    print(f"✅ Wrote generated QA pairs to: {qa_output_file}")
 
 
 if __name__ == "__main__":

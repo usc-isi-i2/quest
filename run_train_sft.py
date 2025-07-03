@@ -15,12 +15,8 @@ def parse_args():
         "--model_name", type=str, required=False, help="Model name, e.g. gpt-4o-mini", default="gpt-4o-mini-2024-07-18"
     )
 
-    parser.add_argument(
-        "--subject",
-        nargs="+",
-        required=True,
-        help="Subject names to filter from data.jsonl, e.g., chemistry economics microbiology psychology sociology us-history, or 'all'",
-    )
+    parser.add_argument("--subject", type=str, required=True, help="Single subject name (e.g., chemistry) or 'all'")
+
     parser.add_argument("--iterations", type=int, default=1)
     parser.add_argument("--threshold", type=float, default=0.2)
     parser.add_argument(
@@ -53,17 +49,20 @@ def main():
     # Read the data
     data = read_jsonl("data/data.jsonl")
 
-    # Handle subject=all
-    if args.subject == ["all"]:
-        args.subject = sorted(set(item["subject"] for item in data))
-        print(f"Using all subjects: {args.subject}")
+    # Determine subjects to process
+    if args.subject == "all":
+        subjects = sorted(set(item["subject"] for item in data))
+        print(f"Using all subjects: {subjects}")
+    else:
+        subjects = [args.subject]
+        print(f"Using subject: {subjects[0]}")
 
     # Keep track of the current model name; we may update it after each fine-tune iteration
     current_model_name = args.model_name
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
 
     direct_train_data = []
-    for subject in args.subject:
+    for subject in subjects:
         # Filter for the requested subject
         filtered_data = [item for item in data if item["subject"] == subject]
         if not filtered_data:

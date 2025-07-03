@@ -62,15 +62,20 @@ export OPENAI_API_KEY=sk-...
 | └─ `answer`            | (Optional) Reference answer                             |
 | └─ `relevant_sections` | List of related section numbers (LLM-inferred)          |
 
+
 ---
 
 ## 🧪 Inference
 
-To reproduce baseline and model results, run:
+To generate questions and evaluate their impact on learning outcomes, run:
 
 ```bash
-python run_inference.py --subject chemistry physics biology ...
-````
+python run_inference.py \
+  --subject chemistry \
+  --qg_model_name gpt-4o-mini \
+  --evaluate_model_name gpt-4o-mini \
+  --mode fewshot
+```
 
 You can specify different prompting strategies and models:
 
@@ -82,34 +87,34 @@ You can specify different prompting strategies and models:
 | `default` | `sft-trained-model`   | **SFT** (Supervised Fine-Tuning)     |
 | `default` | `quest-trained-model` | **QUEST** (Utility-trained model)    |
 
-Additional options:
+### ⚙️ Options
 
+* `--subject`: required; one of `chemistry`, `biology`, `physics`, `economics`, etc.
+* `--qg_model_name`: model used to generate questions
+* `--evaluate_model_name`: model used to simulate learning
+* `--mode`: prompting strategy (`default`, `cot`, `fewshot`)
 * `--num_questions_per_section`: number of questions to generate per section (default: 1)
-* `--use_document_for_simulate`: if set, uses full document context during learning simulation
+* `--use_document_for_simulate`: if set, uses full document context during simulation
 
-Example usage:
+---
 
-```bash
-python run_inference.py \
-  --subject chemistry \
-  --qg_model_name gpt-4o-mini \
-  --evaluate_model_name gpt-4o-mini \
-  --mode fewshot
-```
+### 📤 Output
 
-Outputs:
+For subject `chemistry`, output files are saved as:
 
-* `output/{model_name}/{mode}_performance_results.jsonl`: utility scores for each chapter
-* `output/{model_name}/{mode}_qa_pairs.jsonl`: generated question–answer pairs
+* `output/{model_name}/chemistry_{mode}_performance_results.jsonl`: simulated utility scores by chapter
+* `output/{model_name}/chemistry_{mode}_qa_pairs.jsonl`: generated question–answer pairs
+
+---
 
 ### 🔧 Inference with fine-tuned SFT / QUEST model
 
-After running supervised fine-tuning (see [Training](#training)), you can use the trained model by first loading its name from the metadata file:
+After training (see [Training](#training)), use your fine-tuned model like this:
 
 ```python
 # Load fine-tuned model name
 import json
-metadata = json.load(open("metadata/train_metadata_all_sft.json")) # SFT cross-subject setting.
+metadata = json.load(open("metadata/train_metadata_all_sft.json"))
 model_name = metadata["fine_tuned_model"]
 print(model_name)  # e.g., ft:gpt-4o-mini:your-team:custom-id
 ```
@@ -141,7 +146,7 @@ The prompt asks the model to generate a question that helps a student understand
 python run_train_sft.py --subject all --model_name gpt-4o-mini-2024-07-18
 ```
 
-* You can replace `all` with specific subjects like `--subject chemistry`.
+* You can replace `all` with the specific subject like `--subject chemistry`.
   * `all` is for `cross-subject` setting.
 * The script will create training data from all but the last 5 chapters of each subject.
 * Metadata and fine-tuned model information is stored under `metadata/train_metadata_*_sft.json`.
@@ -183,7 +188,7 @@ Unlike SFT, which uses all questions, QUEST selectively fine-tunes using only qu
 python run_train_quest.py --subject all --model_name gpt-4o-mini-2024-07-18 --iterations 1 --threshold 0.1
 ```
 
-* You can replace `all` with specific subjects (e.g., `--subject chemistry`)
+* You can replace `all` with the specific subject (e.g., `--subject chemistry`)
 * `--iterations`: how many fine-tuning + filtering loops to run (default: 1)
 * `--threshold`: minimum utility score (between 0 and 1) for selecting questions
 ---
@@ -245,7 +250,7 @@ This helps analyze *why* certain models lead to better comprehension outcomes by
 
 ```bash
 python run_eval.py \
-  --qa_file output/gpt-4o-mini/fewshot_qa_pairs.jsonl \
+  --qa_file output/gpt-4o-mini/chemistry_fewshot_qa_pairs.jsonl \
   --model_name gpt-4o-mini
 ```
 
