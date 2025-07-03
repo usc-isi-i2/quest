@@ -29,14 +29,19 @@ Across five textbook domains, we find that **QUEST**-trained models produce ques
 
 1. [Setup](#setup)
 2. [Data](#data)
-3. [Inference](#inference)
-4. [Training](#training)
+3. [Inference](#inference) — Generates questions and evaluates their overall utility
+4. [Training](#training) — Supervised fine-tuning (SFT) and QUEST training
+5. [Evaluation](#evaluation) — Assesses the quality of each individual question, generated from the inference step.
+
+   * [Utility](#utility)
+   * [Saliency](#saliency)
+   * [Expected Information Gain (EIG)](#expected-information-gain-eig)
 
 ---
 
 ## ⚙️ Setup
 
-Set your OpenAI API key for inference and training:
+Set your OpenAI API key:
 ```bash
 export OPENAI_API_KEY=sk-...
 ```
@@ -221,18 +226,77 @@ Each metadata file contains:
 
 ---
 
-### 🧪 Evaluate the QUEST-trained model
-
-After training, run:
-
-```bash
-python run_inference.py \
-  --subject chemistry \
-  --qg_model_name <fine_tuned_model_name_from_metadata> \
-  --evaluate_model_name gpt-4o-mini \
-  --mode default
-```
-
-This allows inference of the trained model using the same utility-based simulation used during training.
+다음은 `Evaluation` 섹션에 들어갈 내용을 정리한 예시입니다. 이 섹션은 `run_eval.py`의 기능을 설명하고, `run_inference.py`의 출력(`*_qa_pairs.jsonl`)을 입력으로 받아 각 질문의 품질을 세 가지 기준으로 평가하는 과정을 안내합니다:
 
 ---
+
+## 🧪 Evaluation
+
+After generating questions with `run_inference.py`, you can evaluate the **individual quality** of each question using `run_eval.py`.
+This helps analyze *why* certain models lead to better comprehension outcomes by inspecting each question's:
+
+* **Utility**: Contribution to a simulated learner’s performance
+* **Saliency**: Relevance and centrality to the passage
+* **Expected Information Gain (EIG)**: Reduction in uncertainty after reading the answer
+
+---
+
+### 🔍 To run evaluation:
+
+```bash
+python run_eval.py \
+  --qa_file output/gpt-4o-mini/fewshot_qa_pairs.jsonl \
+  --model_name gpt-4o-mini
+```
+
+This will evaluate every question–answer pair in the input JSONL file and produce corresponding scores.
+
+---
+
+### 📥 Input
+
+* `output/{model_name}/{mode}_qa_pairs.jsonl`: generated questions and answers from `run_inference.py`
+
+Each entry includes:
+
+```json
+{
+  "subject": "chemistry",
+  "chapter": "m50984",
+  "section": 3,
+  "question": "...",
+  "answer": "..."
+}
+```
+
+---
+
+### 📤 Output
+
+Saved in `metrics/` with the same `{model}_{mode}` prefix. For example:
+
+| Metric   | Output File                                    | Description                                             |
+| -------- | ---------------------------------------------- | ------------------------------------------------------- |
+| Utility  | `q_metrics/gpt-4o-mini_fewshot_utility.jsonl`  | Simulated learning gain from each question              |
+| Saliency | `q_metrics/gpt-4o-mini_fewshot_saliency.jsonl` | Relevance & centrality of question to the given article |
+| EIG      | `q_metrics/gpt-4o-mini_fewshot_eig.jsonl`      | Expected information gain from seeing the answer        |
+
+Each output file appends the respective score to each entry:
+
+```json
+{
+  "subject": "chemistry",
+  "chapter": "m50984",
+  "section": 3,
+  "question": "...",
+  "answer": "...",
+  "utility": 0.41,
+  "saliency": 4,
+  "eig": 0.72
+}
+```
+
+---
+
+
+## 📌 Citation
