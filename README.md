@@ -231,10 +231,6 @@ Each metadata file contains:
 
 ---
 
-다음은 `Evaluation` 섹션에 들어갈 내용을 정리한 예시입니다. 이 섹션은 `run_eval.py`의 기능을 설명하고, `run_inference.py`의 출력(`*_qa_pairs.jsonl`)을 입력으로 받아 각 질문의 품질을 세 가지 기준으로 평가하는 과정을 안내합니다:
-
----
-
 ## 🧪 Evaluation
 
 After generating questions with `run_inference.py`, you can evaluate the **individual quality** of each question using `run_eval.py`.
