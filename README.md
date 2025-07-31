@@ -1,11 +1,7 @@
 # Which Questions Should I Ask? Utility Estimation of Questions with LLM-based Simulations
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-green.svg?style=flat-square)](http://makeapullrequest.com)  
-[![arXiv](https://img.shields.io/badge/arXiv-2502.17383-b31b1b.svg)](https://arxiv.org/abs/2502.17383)
 
-This repository contains the dataset, models, and evaluation code from our paper:  
-**[Which Questions Should I Ask? Utility Estimation of Questions with LLM-based Simulations](https://arxiv.org/abs/2502.17383)**
-
-**Authors**: [Dong-Ho Lee](https://dongholee.com/), [Hyundong Cho](https://justin-cho.com/), [Jonathan May](https://jonmay.github.io/webpage/), [Jay Pujara](https://www.jaypujara.org/)
+This repository contains the dataset, models, and evaluation code for our submission:  
+Which Questions Should I Ask? Utility Estimation of Questions with LLM-based Simulations
 
 ---
 
@@ -44,6 +40,12 @@ Across five textbook domains, we find that **QUEST**-trained models produce ques
 Set your OpenAI API key:
 ```bash
 export OPENAI_API_KEY=sk-...
+```
+
+```bash
+conda create -n quest python=3.10
+conda activate quest
+make install 
 ```
 
 ---
@@ -327,21 +329,6 @@ python run_eval.py \
   --qa_file output/gpt-4o-mini/chemistry_fewshot_qa_pairs.jsonl \
   --include_saliency \
   --include_eig
-```
-
----
-
-## 📌 Citation
-
-If you find this work useful in your research, please cite:
-
-```bibtex
-@article{lee2025good,
-  title={What is a good question? utility estimation with llm-based simulations},
-  author={Lee, Dong-Ho and Cho, Hyundong and May, Jonathan and Pujara, Jay},
-  journal={arXiv preprint arXiv:2502.17383},
-  year={2025}
-}
 ```
 
 ---
