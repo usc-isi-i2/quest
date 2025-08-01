@@ -1,5 +1,6 @@
 import argparse
 import os
+import traceback
 
 from loguru import logger
 import numpy as np
@@ -7,7 +8,7 @@ import numpy as np
 from agents import Simulator
 from utils_file import read_jsonl, write_jsonl
 from utils_llm import LLMMessage, OpenAIGenerator
-
+from utils_qsalience import QSalience
 
 textbook_data = read_jsonl("data/data.jsonl")
 
@@ -20,9 +21,10 @@ def parse_args():
     parser.add_argument("--include_saliency", action="store_true", help="Whether to compute saliency score.")
     parser.add_argument("--include_eig", action="store_true", help="Whether to compute expected information gain.")
     return parser.parse_args()
-
+    
 
 def get_saliency_score(llm, article, question, answer):
+    # less accurate than using fine-tuned model
     try:
         saliency_prompt = (
             f"article: {article}\n"
@@ -164,7 +166,11 @@ def main():
             continue
 
         # 4. Compute saliency & EIG if needed
-        if args.include_saliency or args.include_eig:
+        # if args.include_saliency or args.include_eig:
+        if args.include_eig or args.include_saliency: 
+            if args.include_saliency:
+                qsalience = QSalience(args.model_name, args.qlora_model)
+            
             for item in results:
                 try:
                     section = int(item["section"])
@@ -180,14 +186,27 @@ def main():
                     article = context + anchor
 
                     if args.include_saliency:
-                        item["saliency"] = get_saliency_score(llm_generator, article, question, answer)
+                        salience = qsalience.predict_salience(article, question)
+                        attempts = 1
+                        while salience == -1 and attempts < 3:
+                            salience = qsalience.predict_salience(article, question)
+                            if salience == -1:
+                                logger.error(f"Salience score is -1 for {item.get('qid')}, means that salience was not correctly parsed. Trying again")
+                                attempts += 1
+                            else:
+                                break
+                        if attempts == 3:
+                            logger.error(f"Salience score is -1 for {item.get('qid')}, means that salience was not correctly parsed. Skipping")
+                            continue
+                        item["saliency"] = salience
                     if args.include_eig:
                         item["eig"] = compute_eig_score(llm_client, article, question, answer)
 
                 except Exception as e:
                     logger.error(f"[saliency/EIG] failed for {item.get('qid')}: {e}")
+                    logger.error(f"Stack trace: {traceback.format_exc()}")
                     continue
-
+                
     out_path = os.path.join(args.output_dir, f"{base_name}_question_metrics.jsonl")
     write_jsonl(results, out_path)
     print(f"✅ Saved all metrics to: {out_path}")

@@ -8,7 +8,8 @@ openai
 pydantic_settings
 numpy
 tiktoken
-
+peft
+transformers
 
 
 # optional packages for testing and package management
