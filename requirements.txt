@@ -7,10 +7,13 @@ loguru
 openai
 pydantic_settings
 numpy
+pandas
 tiktoken
 peft
 transformers
-
+bitsandbytes
+protobuf
+sentencepiece
 
 # optional packages for testing and package management
 pytest

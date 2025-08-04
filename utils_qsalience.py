@@ -53,7 +53,7 @@ def evaluate_model(dataset, model, tokenizer, max_length=4096, model_name=""):
     
 class QSalience:
     
-    def __init__(self, model_name, qlora_model):
+    def __init__(self, model_name="mistralai/Mistral-7B-Instruct-v0.2", qlora_model="lingchensanwen/mistral-ins-generation-best-balanced"):
         self.model, self.tokenizer = merge_qlora_model(model_name, qlora_model)
         self.model.to(device)
         
