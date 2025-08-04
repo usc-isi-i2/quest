@@ -6,6 +6,7 @@ from agents.base import BaseAgent
 from agents.simulator_evaluator import Evaluator
 from agents.simulator_learner import Learner
 
+from loguru import logger
 
 class Simulator(BaseAgent[tuple[dict[str, dict[str, Union[str, Any]]], float, float]]):
     def __init__(self, generator, alpha=0.5):
@@ -36,12 +37,13 @@ class Simulator(BaseAgent[tuple[dict[str, dict[str, Union[str, Any]]], float, fl
         :param test: If True, only get score(all).
         :return: A dict mapping question_id -> { question, answer, section, utility, single_gain, all_but_one_gain }, all_score, baseline_score
         """
+        
         # 1) Evaluate the baseline (no additional questions)
         # TODO: Baseline score is too fragile; consider a more robust method
         baseline_predictions = self.learner.generate(eval_questions, sections, {})
         baseline_results = self.evaluator.generate(baseline_predictions, sections)
         baseline_score = np.mean([float(v["score"]) for v in baseline_results.values()])
-        print(f"[Baseline] No questions score: {baseline_score:.4f}")
+        logger.info(f"[Baseline] No questions score: {baseline_score:.4f}")
 
         # 2) Flatten the generated_questions into a list for indexing
         flattened_questions = []
@@ -52,7 +54,7 @@ class Simulator(BaseAgent[tuple[dict[str, dict[str, Union[str, Any]]], float, fl
 
         # Make a quick lookup
         question_ids = [x[0] for x in flattened_questions]
-        print(f"Total questions generated: {len(question_ids)}")
+        logger.info(f"Total questions generated: {len(question_ids)}")
 
         # ---------------------------------------------------------------------
         # 3) Evaluate ALL questions as a single set
@@ -66,12 +68,12 @@ class Simulator(BaseAgent[tuple[dict[str, dict[str, Union[str, Any]]], float, fl
         all_predictions = self.learner.generate(eval_questions, sections, all_subset)
         all_results = self.evaluator.generate(all_predictions, sections)
         all_score = np.mean([float(v["score"]) for v in all_results.values()])
-        print(f"[All-Set] Score with all questions: {all_score:.4f}")
+        logger.info(f"[All-Set] Score with all questions: {all_score:.4f}")
 
         if test:
             return {}, float(all_score), float(baseline_score)
         if all_score <= baseline_score:
-            print("No questions improved the baseline score. Exiting.")
+            logger.info("No questions improved the baseline score. Exiting.")
             return {}, float(all_score), float(baseline_score)
 
         # ---------------------------------------------------------------------
@@ -87,7 +89,7 @@ class Simulator(BaseAgent[tuple[dict[str, dict[str, Union[str, Any]]], float, fl
 
             gain = single_score - baseline_score
             single_question_gains[qid] = gain
-            print(f"[Single] {qid}: single_score={single_score:.4f}, gain={gain:.4f}")
+            logger.info(f"[Single] {qid}: single_score={single_score:.4f}, gain={gain:.4f}")
 
         # ---------------------------------------------------------------------
         # 5) All-But-One Gains
@@ -114,7 +116,7 @@ class Simulator(BaseAgent[tuple[dict[str, dict[str, Union[str, Any]]], float, fl
             # all_score - minus_one_score
             contribution = all_score - minus_one_score
             all_minus_one_gains[qid] = contribution
-            print(f"[All-but-One] {qid}: minus_one_score={minus_one_score:.4f}, contribution={contribution:.4f}")
+            logger.info(f"[All-but-One] {qid}: minus_one_score={minus_one_score:.4f}, contribution={contribution:.4f}")
 
         # ---------------------------------------------------------------------
         # 6) Combine into a single blended utility
@@ -139,14 +141,14 @@ class Simulator(BaseAgent[tuple[dict[str, dict[str, Union[str, Any]]], float, fl
         # ---------------------------------------------------------------------
         # 7) Print final results
         # ---------------------------------------------------------------------
-        print("\n--- Blended Utility Results ---")
+        logger.info("\n--- Blended Utility Results ---")
         for qid, info in utilities.items():
-            print(f"{qid}:")
-            print(f"  Single-question gain: {info['single_gain']:.4f}")
-            print(f"  All-but-one gain:     {info['all_but_one_gain']:.4f}")
-            print(f"  Blended utility:      {info['utility']:.4f}")
-            print(f"  Q: {info['question']}")
-            print(f"  A: {info['answer']}\n")
+            logger.info(f"{qid}:")
+            logger.info(f"  Single-question gain: {info['single_gain']:.4f}")
+            logger.info(f"  All-but-one gain:     {info['all_but_one_gain']:.4f}")
+            logger.info(f"  Blended utility:      {info['utility']:.4f}")
+            logger.info(f"  Q: {info['question']}")
+            logger.info(f"  A: {info['answer']}\n")
 
         test_score = all_score
         return utilities, float(test_score), float(baseline_score)

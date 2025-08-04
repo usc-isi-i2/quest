@@ -5,6 +5,7 @@ import random
 from agents import AnswerGenerator, QuestionGenerator, Simulator
 from utils_file import read_jsonl, write_jsonl
 from utils_llm import OpenAIGenerator
+from loguru import logger
 
 
 def parse_args():
@@ -17,10 +18,10 @@ def parse_args():
     parser.add_argument(
         "--mode", type=str, choices=["default", "cot", "fewshot"], default="default", help="Prompting strategy"
     )
-    parser.add_argument("--subject", type=str, required=True, help="Single subject to process (e.g., chemistry)")
+    parser.add_argument("--subject", type=str, required=True, help="Single subject to process, one of [chemistry, sociology, us-history, microbiology, economics]")
     parser.add_argument("--use_document_for_simulate", action="store_true", help="Use document sections in simulation")
     parser.add_argument("--num_questions_per_section", type=int, default=1, help="Questions to generate per section")
-
+    parser.add_argument("--run_on_train", action="store_true", help="Run on train data, mainly used to produce data for analysis")
     return parser.parse_args()
 
 
@@ -44,7 +45,7 @@ def main():
 
     # Create output paths
     os.makedirs(f"output/{args.qg_model_name}", exist_ok=True)
-    out_file = f"output/{args.qg_model_name}/{subject}_{args.mode}_performance_results.jsonl"
+    out_file = f"output/{args.qg_model_name}/{subject}_{args.mode}_performance_results.jsonl" if not args.run_on_train else f"output/{args.qg_model_name}/{subject}_{args.mode}_performance_results_on-train:{args.run_on_train}.jsonl"
     qa_output_file = f"output/{args.qg_model_name}/{subject}_{args.mode}_qa_pairs.jsonl"
     question_generator_performances = []
     qa_pairs = []
@@ -52,7 +53,7 @@ def main():
 
     filtered_data = [item for item in data if item["subject"] == subject]
     if not filtered_data:
-        print(f"No data found for subject '{subject}'")
+        logger.info(f"No data found for subject '{subject}'")
         return
 
     filtered_data = sorted(filtered_data, key=lambda x: x["chapter"])
@@ -77,6 +78,12 @@ def main():
                     )
         random.shuffle(few_shot_raw_examples)
         few_shot_candidates = few_shot_raw_examples[:5]
+
+    if args.run_on_train: 
+        # warn against use for fewshot 
+        if args.mode == "fewshot": 
+            logger.warning("Running on train data with fewshot mode is not recommended. Please use default mode instead.")
+        test_filtered_data = train_filtered_data
 
     for test_data in test_filtered_data:
         chapter = test_data["chapter"]
@@ -115,10 +122,10 @@ def main():
                 )
 
         for section_id, questions in questions_by_section.items():
-            print(f"\nSection {section_id}:")
+            logger.info(f"\nSection {section_id}:")
             for q in questions:
-                print(f"  Question: {q['question']}")
-                print(f"  Answer: {q['answer']}")
+                logger.info(f"  Question: {q['question']}")
+                logger.info(f"  Answer: {q['answer']}")
 
         if args.use_document_for_simulate:
             _, all_score, baseline_score = simulator.generate(
@@ -144,11 +151,21 @@ def main():
                 "gain": all_score - baseline_score,
             }
         )
+    
+    # add average 
+    average_performance = {
+        "subject": subject,
+        "chapter": "average",
+        "all_score": sum([p["all_score"] for p in question_generator_performances]) / len(question_generator_performances),
+        "baseline_score": sum([p["baseline_score"] for p in question_generator_performances]) / len(question_generator_performances),
+        "gain": sum([p["gain"] for p in question_generator_performances]) / len(question_generator_performances),
+    }
+    question_generator_performances.append(average_performance)
 
     write_jsonl(question_generator_performances, out_file)
     write_jsonl(qa_pairs, qa_output_file)
-    print(f"\n✅ Wrote performance to: {out_file}")
-    print(f"✅ Wrote generated QA pairs to: {qa_output_file}")
+    logger.info(f"\n✅ Wrote performance to: {out_file}")
+    logger.info(f"✅ Wrote generated QA pairs to: {qa_output_file}")
 
 
 if __name__ == "__main__":

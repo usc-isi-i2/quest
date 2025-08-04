@@ -8,6 +8,7 @@ from openai import OpenAI
 from agents import AnswerGenerator, QuestionGenerator, Simulator
 from utils_file import read_jsonl, write_json, write_jsonl
 from utils_llm import OpenAIGenerator
+from loguru import logger
 
 
 def parse_args():
@@ -33,7 +34,7 @@ def write_metadata(iteration, subjects, threshold, base_model, fine_tuned_model,
         "fine_tuned_model": fine_tuned_model,
     }
     write_json(metadata, metadata_file)
-    print(f"Metadata saved to {metadata_file}")
+    logger.info(f"Metadata saved to {metadata_file}")
 
 
 def main():
@@ -43,16 +44,16 @@ def main():
     # subject handling
     if args.subject == "all":
         subjects = sorted(set(item["subject"] for item in data))
-        print(f"Using all subjects: {subjects}")
+        logger.info(f"Using all subjects: {subjects}")
     else:
         subjects = [args.subject]
-        print(f"Using subject: {args.subject}")
+        logger.info(f"Using subject: {args.subject}")
 
     current_model_name = args.model_name
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
 
     for iteration in range(args.iterations):
-        print(f"\n========== Iteration {iteration + 1} / {args.iterations} ==========")
+        logger.info(f"\n========== Iteration {iteration + 1} / {args.iterations} ==========")
 
         qg_llm = OpenAIGenerator(model=current_model_name, oai_api_key=os.getenv("OPENAI_API_KEY", ""))
         question_generator = QuestionGenerator(generator=qg_llm)
@@ -89,7 +90,7 @@ def main():
                         generated_questions=questions_by_section,
                     )
                 except Exception as e:
-                    print(f"Simulation error: {e}")
+                    logger.info(f"Simulation error: {e}")
                     continue
 
                 for qid, u in utilities.items():
@@ -106,7 +107,7 @@ def main():
                         )
 
         if not high_utility_questions:
-            print("No high-utility questions found. Skipping.")
+            logger.info("No high-utility questions found. Skipping.")
             continue
 
         subjects_str = "_".join(args.subject)
@@ -124,18 +125,18 @@ def main():
         ]
 
         write_jsonl(training_data, data_filename)
-        print(f"Saved training data: {data_filename}")
+        logger.info(f"Saved training data: {data_filename}")
 
-        print("\nUploading file for fine-tuning...")
+        logger.info("\nUploading file for fine-tuning...")
         uploaded_file_id = client.files.create(file=open(data_filename, "rb"), purpose="fine-tune").id
 
-        print("Creating fine-tuning job...")
+        logger.info("Creating fine-tuning job...")
         job_id = client.fine_tuning.jobs.create(training_file=uploaded_file_id, model=current_model_name).id
-        print(f"Started fine-tuning job: {job_id}")
+        logger.info(f"Started fine-tuning job: {job_id}")
 
         while True:
             status = client.fine_tuning.jobs.retrieve(job_id).status
-            print(f"Job {job_id} status: {status}")
+            logger.info(f"Job {job_id} status: {status}")
             if status in ["succeeded", "failed"]:
                 break
             time.sleep(15)
@@ -143,17 +144,17 @@ def main():
         if status == "succeeded":
             new_model = client.fine_tuning.jobs.retrieve(job_id).fine_tuned_model
             if not new_model:
-                print("No fine-tuned model returned. Stopping.")
+                logger.info("No fine-tuned model returned. Stopping.")
                 break
-            print(f"Fine-tuning succeeded: {new_model}")
+            logger.info(f"Fine-tuning succeeded: {new_model}")
             metadata_file = f"metadata/train_metadata_{subjects_str}_iter_{iteration}_thresh_{threshold_str}.json"
             write_metadata(iteration, args.subject, args.threshold, current_model_name, new_model, metadata_file)
             current_model_name = new_model
         else:
-            print("Fine-tuning failed. Stopping.")
+            logger.info("Fine-tuning failed. Stopping.")
             break
 
-    print("\nAll iterations complete.")
+    logger.info("\nAll iterations complete.")
 
 
 if __name__ == "__main__":
