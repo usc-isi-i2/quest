@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Examiner - File Selection</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .file-list {
+            display: grid;
+            gap: 15px;
+        }
+        .file-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .file-card:hover {
+            background: #e9ecef;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .file-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .file-name {
+            font-weight: bold;
+            color: #495057;
+            font-size: 1.1em;
+        }
+        .file-location {
+            font-size: 0.9em;
+            color: #6c757d;
+            background: #e9ecef;
+            padding: 2px 8px;
+            border-radius: 3px;
+        }
+        .file-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .info-item {
+            background: white;
+            padding: 8px;
+            border-radius: 3px;
+            border: 1px solid #dee2e6;
+            font-size: 0.9em;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #495057;
+        }
+        .info-value {
+            color: #6c757d;
+            margin-top: 2px;
+        }
+        .file-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+            display: inline-block;
+        }
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        .no-files {
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+            padding: 40px;
+        }
+        .section-header {
+            margin: 20px 0 10px 0;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #e9ecef;
+            color: #495057;
+            font-weight: bold;
+        }
+        .file-size {
+            font-size: 0.85em;
+        }
+        .file-date {
+            font-size: 0.85em;
+        }
+        .entry-count {
+            font-weight: bold;
+            color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📁 Log Examiner - File Selection</h1>
+        
+        {% if log_files %}
+            <div class="file-list">
+                {% for file in log_files %}
+                <div class="file-card">
+                    <div class="file-header">
+                        <span class="file-name">{{ file.name }}</span>
+                        <span class="file-location">{{ file.type }}</span>
+                    </div>
+                    
+                    <div class="file-info">
+                        <div class="info-item">
+                            <div class="info-label">Size</div>
+                            <div class="info-value file-size">{{ (file.size / 1024)|round(1) }} KB</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Modified</div>
+                            <div class="info-value file-date">{{ file.modified.strftime('%Y-%m-%d %H:%M') }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Path</div>
+                            <div class="info-value">{{ file.path }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="file-actions">
+                        <a href="/load/{{ file.path }}" class="btn btn-primary">📊 Load & Examine</a>
+                        <a href="/file_info/{{ file.path }}" class="btn btn-secondary">ℹ️ File Info</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="no-files">
+                <h3>No log files found</h3>
+                <p>No .jsonl files found in the current directory or logs/ folder.</p>
+                <p>Make sure you have run the training script to generate log files.</p>
+            </div>
+        {% endif %}
+        
+        <div style="margin-top: 30px; text-align: center; color: #6c757d; font-size: 0.9em;">
+            <p>💡 <strong>Tip:</strong> Click "Load & Examine" to view the generated question details in a log file.</p>
+            <p>📋 <strong>Info:</strong> Click "File Info" to see detailed statistics about a log file.</p>
+        </div>
+    </div>
+</body>
+</html> 

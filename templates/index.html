@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Examiner - Generated Question Details</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .stats {
+            background: #e8f4fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .entry-list {
+            display: grid;
+            gap: 15px;
+        }
+        .entry-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .entry-card:hover {
+            background: #e9ecef;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .entry-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .entry-id {
+            font-weight: bold;
+            color: #495057;
+        }
+        .entry-meta {
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        .entry-question {
+            font-style: italic;
+            color: #495057;
+            margin-bottom: 8px;
+        }
+        .entry-answer {
+            color: #6c757d;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+        .entry-scores {
+            display: flex;
+            gap: 15px;
+            font-size: 0.85em;
+        }
+        .score-item {
+            background: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+            border: 1px solid #dee2e6;
+        }
+        .utility-positive {
+            color: #28a745;
+        }
+        .utility-negative {
+            color: #dc3545;
+        }
+        .utility-neutral {
+            color: #6c757d;
+        }
+        .no-entries {
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+            padding: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Log Examiner - Generated Question Details</h1>
+        
+        <div class="stats">
+            <strong>Total Entries:</strong> {{ total }} | 
+            <strong>File:</strong> {{ current_file if current_file else 'N/A' }}
+            <br>
+            <a href="/change_file" style="color: #007bff; text-decoration: none; font-size: 0.9em;">← Change File</a>
+        </div>
+        
+        {% if entries %}
+            <div class="entry-list">
+                {% for entry in entries %}
+                <div class="entry-card" onclick="window.location.href='/view/{{ loop.index0 }}'">
+                    <div class="entry-header">
+                        <span class="entry-id">Entry #{{ loop.index }}</span>
+                        <span class="entry-meta">
+                            {{ entry.timestamp[:19] }} | 
+                            {{ entry.subject }} | 
+                            Chapter {{ entry.chapter_id }}
+                        </span>
+                    </div>
+                    
+                    <div class="entry-question">
+                        <strong>Q:</strong> {{ entry.question[:100] }}{% if entry.question|length > 100 %}...{% endif %}
+                    </div>
+                    
+                    <div class="entry-answer">
+                        <strong>A:</strong> {{ entry.answer[:100] }}{% if entry.answer|length > 100 %}...{% endif %}
+                    </div>
+                    
+                    <div class="entry-scores">
+                        <div class="score-item">
+                            <strong>Utility:</strong> 
+                            <span class="{{ entry.utility|utility_color_class }}">
+                                {{ entry.utility|format_utility_safe }}
+                            </span>
+                        </div>
+                        <div class="score-item">
+                            <strong>Single Gain:</strong> {{ entry.single_gain|format_score }}
+                        </div>
+                        <div class="score-item">
+                            <strong>All-But-One:</strong> {{ entry.all_but_one_gain|format_score }}
+                        </div>
+                        <div class="score-item">
+                            <strong>Section:</strong> {{ entry.section }}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="no-entries">
+                No generated question detail entries found in the log file.
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html> 

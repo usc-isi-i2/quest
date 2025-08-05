@@ -1,3 +1,4 @@
+import copy
 from loguru import logger
 
 from agents.base import BaseAgent
@@ -48,7 +49,7 @@ Answer in the following JSON format:
                 ]
 
                 response = self.generator.generate_json(messages=evaluate_message, temperature=0.0, top_p=1.0, seed=42)
-                results[q_id] = instance
+                results[q_id] = copy.deepcopy(instance)
                 results[q_id]["score"] = response.content["score"]
                 results[q_id]["feedback"] = response.content["feedback"]
 

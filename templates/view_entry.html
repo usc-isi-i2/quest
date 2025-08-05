@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entry {{ entry_index + 1 }} - Log Examiner</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 20px 15px 20px;
+            border-bottom: 2px solid #e9ecef;
+            background: white;
+            flex-shrink: 0;
+        }
+        .nav-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .nav-btn {
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .nav-btn:hover {
+            background: #0056b3;
+        }
+        .nav-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .entry-info {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-radius: 5px;
+            margin: 0 20px 20px 20px;
+            flex-shrink: 0;
+        }
+        .entry-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .meta-item {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+        }
+        .meta-label {
+            font-weight: bold;
+            color: #495057;
+            font-size: 0.9em;
+        }
+        .meta-value {
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        .question-section {
+            background: #e8f4fd;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 0 20px 20px 20px;
+            flex-shrink: 0;
+        }
+        .question-text {
+            font-size: 1.1em;
+            color: #495057;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+        .answer-text {
+            font-size: 1em;
+            color: #6c757d;
+            line-height: 1.4;
+        }
+        .scores-section {
+            background: #fff3cd;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 0 20px 20px 20px;
+            flex-shrink: 0;
+        }
+        .scores-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        .score-item {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+            text-align: center;
+        }
+        .score-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        .utility-positive {
+            color: #28a745;
+        }
+        .utility-negative {
+            color: #dc3545;
+        }
+        .utility-neutral {
+            color: #6c757d;
+        }
+        .gain-positive {
+            color: #28a745;
+        }
+        .gain-negative {
+            color: #dc3545;
+        }
+        .gain-neutral {
+            color: #6c757d;
+        }
+        .exam-questions-section {
+            background: #d1ecf1;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 0 20px 20px 20px;
+            flex: 1;
+            overflow-y: auto;
+        }
+        .exam-question {
+            background: white;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            border: 1px solid #bee5eb;
+        }
+        .exam-question:last-child {
+            margin-bottom: 0;
+        }
+        .exam-header-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .exam-header-controls h3 {
+            margin: 0;
+        }
+        .filter-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .filter-controls label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9em;
+            color: #495057;
+            cursor: pointer;
+        }
+        .filter-controls input[type="checkbox"] {
+            margin: 0;
+        }
+        .exam-header {
+            font-weight: bold;
+            color: #495057;
+            margin-bottom: 10px;
+        }
+        .exam-content {
+            margin-bottom: 10px;
+        }
+        .exam-scenarios {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        .scenario-item {
+            background: #f8f9fa;
+            padding: 8px;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+        .scenario-label {
+            font-weight: bold;
+            color: #495057;
+        }
+        .scenario-value {
+            color: #6c757d;
+        }
+        .jump-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin: 20px;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .jump-input {
+            padding: 5px 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            width: 80px;
+        }
+        .jump-btn {
+            padding: 5px 10px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .jump-btn:hover {
+            background: #545b62;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Entry {{ entry_index + 1 }} of {{ total_entries }}</h1>
+            <div class="nav-controls">
+                <a href="/" class="nav-btn">← Back to List</a>
+                <a href="/navigate/prev?current={{ entry_index }}" 
+                   class="nav-btn" 
+                   {% if entry_index == 0 %}style="pointer-events: none; opacity: 0.5;"{% endif %}>
+                    ← Previous
+                </a>
+                <a href="/navigate/next?current={{ entry_index }}" 
+                   class="nav-btn" 
+                   {% if entry_index == total_entries - 1 %}style="pointer-events: none; opacity: 0.5;"{% endif %}>
+                    Next →
+                </a>
+            </div>
+        </div>
+        
+        <div class="entry-info">
+            <strong>Timestamp:</strong> {{ entry.timestamp }} | 
+            <strong>Subject:</strong> {{ entry.subject }} | 
+            <strong>Chapter:</strong> {{ entry.chapter_id }} | 
+            <strong>Section:</strong> {{ entry.section }}
+        </div>
+        
+        <div class="question-section">
+            <h3>📝 Generated Question & Answer</h3>
+            <div class="question-text">
+                <strong>Question:</strong><br>
+                {{ entry.question }}
+            </div>
+            <div class="answer-text">
+                <strong>Answer:</strong><br>
+                {{ entry.answer }}
+            </div>
+        </div>
+        
+        <div class="scores-section">
+            <h3>📊 Utility Scores</h3>
+            <div class="scores-grid">
+                <div class="score-item">
+                    <div class="meta-label">Utility Score</div>
+                    <div class="score-value {{ entry.utility|utility_color_class }}">
+                        {{ entry.utility|format_utility_safe }}
+                    </div>
+                </div>
+                <div class="score-item">
+                    <div class="meta-label">Single Gain</div>
+                    <div class="score-value">{{ entry.single_gain|format_score }}</div>
+                </div>
+                <div class="score-item">
+                    <div class="meta-label">All-But-One Gain</div>
+                    <div class="score-value">{{ entry.all_but_one_gain|format_score }}</div>
+                </div>
+                <div class="score-item">
+                    <div class="meta-label">Generated Question ID</div>
+                    <div class="score-value">{{ entry.generated_question_id }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="exam-questions-section">
+            <div class="exam-header-controls">
+                <h3>🎯 Impact on Exam Questions</h3>
+                <div class="filter-controls">
+                    <span id="visibleCount" style="font-size: 0.9em; color: #6c757d; margin-right: 10px;"></span>
+                    <label>
+                        <input type="checkbox" id="showNonzeroGains" onchange="filterExamQuestions()">
+                        Show only questions with nonzero gains
+                    </label>
+                </div>
+            </div>
+            <p>This shows how this generated question affects performance on each exam question across different scenarios.</p>
+            
+            {% if entry.exam_questions %}
+                {% for exam_qid, exam_data in entry.exam_questions.items() %}
+                <div class="exam-question">
+                    <div class="exam-header">Exam Question {{ exam_qid }}</div>
+                    
+                    <div class="exam-content">
+                        <div><strong>Question:</strong> {{ exam_data.question }}</div>
+                        <div><strong>Ground Truth:</strong> {{ exam_data.ground_truth }}</div>
+                    </div>
+                    
+                    <div class="exam-scenarios">
+                        {% for scenario in ['baseline', 'all_questions', 'single_one', 'leave_one_out'] %}
+                            {% if scenario in exam_data %}
+                            <div class="scenario-item">
+                                <div class="scenario-label">{{ scenario.replace('_', ' ').title() }}</div>
+                                <div class="scenario-value">
+                                    <strong>Prediction:</strong> {{ exam_data[scenario].prediction }}<br>
+                                    <strong>Score:</strong> {{ exam_data[scenario].score|format_score }}<br>
+                                    {% if scenario == 'single_one' %}
+                                        {% set gain = exam_data.single_one.score - exam_data.baseline.score %}
+                                        <strong>Gain:</strong> <span class="{{ gain|gain_color_class }}">{{ gain|format_score }}</span><br>
+                                    {% elif scenario == 'leave_one_out' %}
+                                        {% set gain = exam_data.all_questions.score - exam_data.leave_one_out.score %}
+                                        <strong>Gain:</strong> <span class="{{ gain|gain_color_class }}">{{ gain|format_score }}</span><br>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p><em>No exam question data available for this entry.</em></p>
+            {% endif %}
+        </div>
+        
+        <div class="jump-controls">
+            <span>Jump to entry:</span>
+            <input type="number" class="jump-input" id="jumpInput" min="1" max="{{ total_entries }}" value="{{ entry_index + 1 }}">
+            <button class="jump-btn" onclick="jumpToEntry()">Go</button>
+        </div>
+    </div>
+    
+    <script>
+        function jumpToEntry() {
+            const input = document.getElementById('jumpInput');
+            const targetIndex = parseInt(input.value) - 1;
+            if (targetIndex >= 0 && targetIndex < {{ total_entries }}) {
+                window.location.href = '/view/' + targetIndex;
+            }
+        }
+        
+        // Allow Enter key to jump
+        document.getElementById('jumpInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                jumpToEntry();
+            }
+        });
+
+        // Filter exam questions based on gains
+        function filterExamQuestions() {
+            const showNonzero = document.getElementById('showNonzeroGains').checked;
+            const examQuestions = document.querySelectorAll('.exam-question');
+            
+            examQuestions.forEach(question => {
+                let hasNonzeroGain = false;
+                
+                // Find single gain and leave-one-out gain elements
+                const scenarioItems = question.querySelectorAll('.scenario-item');
+                scenarioItems.forEach(item => {
+                    const label = item.querySelector('.scenario-label');
+                    const value = item.querySelector('.scenario-value');
+                    
+                    if (label && value && (label.textContent.includes('Single One') || label.textContent.includes('Leave One Out'))) {
+                        const gainText = value.textContent;
+                        const gainMatch = gainText.match(/Gain:\s*([\d.-]+)/);
+                        if (gainMatch) {
+                            const gain = parseFloat(gainMatch[1]);
+                            if (Math.abs(gain) > 0.001) { // Small threshold for "nonzero"
+                                hasNonzeroGain = true;
+                            }
+                        }
+                    }
+                });
+                
+                // Show/hide based on filter
+                if (showNonzero) {
+                    question.style.display = hasNonzeroGain ? 'block' : 'none';
+                } else {
+                    question.style.display = 'block';
+                }
+            });
+            
+            // Update count
+            updateVisibleCount();
+        }
+        
+        function updateVisibleCount() {
+            const visibleQuestions = document.querySelectorAll('.exam-question[style*="display: block"], .exam-question:not([style*="display: none"])');
+            const totalQuestions = document.querySelectorAll('.exam-question').length;
+            const countElement = document.getElementById('visibleCount');
+            
+            if (countElement) {
+                countElement.textContent = `${visibleQuestions.length} of ${totalQuestions}`;
+            }
+        }
+        
+        // Initialize count on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateVisibleCount();
+        });
+
+        // log the entry to the console
+        console.log({{ entry|tojson }});
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowLeft' && {{ entry_index }} > 0) {
+                window.location.href = '/view/{{ entry_index - 1 }}';
+            } else if (e.key === 'ArrowRight' && {{ entry_index }} < {{ total_entries - 1 }}) {
+                window.location.href = '/view/{{ entry_index + 1 }}';
+            }
+        });
+    </script>
+</body>
+</html> 
