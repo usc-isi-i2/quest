@@ -17,10 +17,10 @@ The tracking system captures detailed information about:
 
 ```bash
 # Use default tracking file (auto-generated timestamp)
-python run_train_quest.py --subject chemistry --iterations 2
+python run_train_quest.py --subject chemistry
 
 # Specify custom tracking file
-python run_train_quest.py --subject chemistry --iterations 2 --tracking_file my_tracking.jsonl
+python run_train_quest.py --subject chemistry --tracking_file my_tracking.jsonl
 
 # Test mode - run on small subset to verify logging
 python run_train_quest.py --subject chemistry --test_mode --tracking_file test_output.jsonl
