@@ -16,6 +16,7 @@ def parse_args():
     parser.add_argument("--model_name", type=str, default="gpt-4o-mini", help="LLM model to use.")
     parser.add_argument("--output_dir", type=str, default="q_metrics", help="Directory to save results.")
     parser.add_argument("--include_saliency", action="store_true", help="Whether to compute saliency score.")
+    parser.add_argument("--include_saliency_zeroshot", action="store_true", help="Whether to compute saliency score with zero-shot approach.")
     parser.add_argument("--include_eig", action="store_true", help="Whether to compute expected information gain.")
     parser.add_argument("--qsalience_model_name",type=str, default="mistralai/Mistral-7B-Instruct-v0.2", help="model name for qsalience")
     parser.add_argument("--qsalience_qlora_model_name", type=str, default="lingchensanwen/mistral-ins-generation-best-balanced", help="qlora model name for qsalience")
@@ -159,6 +160,9 @@ def process_metrics_for_item(item, textbook_data, subject, qsalience, llm_genera
         chapter_data = next(d for d in textbook_data if d["subject"] == subject and d["chapter"] == chapter)
         article = build_article_context(chapter_data, section)
 
+        if args.include_saliency_zeroshot:
+            item["saliency"] = get_saliency_score(llm_generator, article, question, answer)
+        
         if args.include_saliency:
             item["saliency"] = compute_saliency_with_fallback(
                 qsalience, llm_generator, article, question, answer, item.get('qid')

@@ -40,7 +40,8 @@ def meta_analyze_correlations(correlations, sample_sizes):
     
     return avg_correlation, p_value, z_stat
 
-metric_results = Path("q_metrics").glob("*.jsonl")
+# metric_results = Path("q_metrics").glob("*.jsonl")
+metric_results = Path("output/gpt-4o-mini/").glob("*qa_pairs_*m*.jsonl")
 
 metrics = ["saliency", "eig", "utility"]
 

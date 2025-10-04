@@ -29,10 +29,10 @@ Output in following JSON format:
         else:
             base_prompt = f"""article: {context}
 Student is currently reading the sentence: {anchor}.
-Generate a question that helps the student understand the sentence better.
+Generate {num_questions} nonoverlapping questions that helps the student understand the sentence better.
 Output in following JSON format:
 {{
-"question": question
+"questions": [question1, question2, ...]
 }}"""
 
         # Build few-shot message if applicable
@@ -55,12 +55,11 @@ Output in following JSON format:
 
         messages = [LLMMessage(role="user", content=full_prompt)]
 
-        questions = []
-        for _ in range(num_questions):
-            response = self.generator.generate_json(
-                messages=messages,
-                temperature=0.5,
-            )
-            questions.append(response.content["question"])
+        response = self.generator.generate_json(
+            messages=messages,
+            temperature=1,
+        )
+        
+        questions = response.content["questions"]
 
         return questions, base_prompt

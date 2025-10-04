@@ -26,6 +26,7 @@ class Simulator(BaseAgent[tuple[dict[str, dict[str, Union[str, Any]]], float, fl
         sections: dict[str, dict],
         generated_questions: dict[str, list],
         test: bool = False,
+        single_only: bool = False,
     ) -> tuple[dict[str, dict[str, Union[str, Any]]], float, float]:
         r"""Computes a blended utility measure for each generated question.
 
@@ -59,22 +60,24 @@ class Simulator(BaseAgent[tuple[dict[str, dict[str, Union[str, Any]]], float, fl
         # ---------------------------------------------------------------------
         # 3) Evaluate ALL questions as a single set
         # ---------------------------------------------------------------------
-        all_subset = {}
-        for _, section_id, qdict in flattened_questions:
-            if section_id not in all_subset:
-                all_subset[section_id] = []
-            all_subset[section_id].append({"question": qdict["question"], "answer": qdict["answer"]})
 
-        all_predictions = self.learner.generate(eval_questions, sections, all_subset)
-        all_results = self.evaluator.generate(all_predictions, sections)
-        all_score = np.mean([float(v["score"]) for v in all_results.values()])
-        logger.info(f"[All-Set] Score with all questions: {all_score:.4f}")
+        if not single_only:
+            all_subset = {}
+            for _, section_id, qdict in flattened_questions:
+                if section_id not in all_subset:
+                    all_subset[section_id] = []
+                all_subset[section_id].append({"question": qdict["question"], "answer": qdict["answer"]})
 
-        if test:
-            return {}, float(all_score), float(baseline_score)
-        if all_score <= baseline_score:
-            logger.info("No questions improved the baseline score. Exiting.")
-            return {}, float(all_score), float(baseline_score)
+            all_predictions = self.learner.generate(eval_questions, sections, all_subset)
+            all_results = self.evaluator.generate(all_predictions, sections)
+            all_score = np.mean([float(v["score"]) for v in all_results.values()])
+            logger.info(f"[All-Set] Score with all questions: {all_score:.4f}")
+
+            if test:
+                return {}, float(all_score), float(baseline_score)
+            if all_score <= baseline_score:
+                logger.info("No questions improved the baseline score. Exiting.")
+                return {}, float(all_score), float(baseline_score)
 
         # ---------------------------------------------------------------------
         # 4) Single-Question Gains
@@ -90,6 +93,22 @@ class Simulator(BaseAgent[tuple[dict[str, dict[str, Union[str, Any]]], float, fl
             gain = single_score - baseline_score
             single_question_gains[qid] = gain
             logger.info(f"[Single] {qid}: single_score={single_score:.4f}, gain={gain:.4f}")
+
+
+        if single_only: 
+            utilities = {}
+            for qid, section_id, qdict in flattened_questions:
+                s_gain = single_question_gains[qid]
+                utilities[qid] = {
+                    "question": qdict["question"],
+                    "answer": qdict["answer"],
+                    "section": section_id,
+                    "single_gain": s_gain,
+                    "all_but_one_gain": None,
+                    "utility": s_gain,
+                }
+            return utilities, None, baseline_score 
+
 
         # ---------------------------------------------------------------------
         # 5) All-But-One Gains
