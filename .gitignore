@@ -3,3 +3,5 @@ __pycache__
 output/
 q_metrics/
 *.jsonl
+.streamlit/secrets.toml
+annotations/

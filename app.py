@@ -44,6 +44,29 @@ You will complete one sample at a time. Progress bar will be shown at the top.
     """
 )
 
+DEFAULT_S3_BUCKET = "knic-quest"
+DEFAULT_S3_PREFIX = "annotations/"
+DEFAULT_AWS_REGION = "us-east-1"
+
+# Optional: S3 healthcheck
+def s3_healthcheck() -> dict:
+    s3_bucket = os.getenv("S3_BUCKET", DEFAULT_S3_BUCKET)
+    s3_prefix = os.getenv("S3_PREFIX", DEFAULT_S3_PREFIX)
+    if not s3_bucket:
+        return {"enabled": False, "ok": False, "message": "S3 not configured (S3_BUCKET missing)"}
+    try:
+        s3 = boto3.client(
+            "s3",
+            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+            aws_session_token=os.getenv("AWS_SESSION_TOKEN"),
+            region_name=os.getenv("AWS_REGION", DEFAULT_AWS_REGION),
+        )
+        s3.head_bucket(Bucket=s3_bucket)
+        return {"enabled": True, "ok": True, "message": f"S3 bucket reachable: s3://{s3_bucket}/{s3_prefix}"}
+    except Exception as e:
+        return {"enabled": True, "ok": False, "message": f"S3 check failed: {e}"}
+
 
 def load_samples(path: Path) -> list[dict]:
     samples = read_jsonl(path)
@@ -124,8 +147,8 @@ def get_generated_questions(sample: dict) -> list[dict]:
 
 def save_annotation(record: dict) -> None:
     # If S3 is configured, upload a single-object JSON per record; else append locally
-    s3_bucket = os.getenv("S3_BUCKET", "quest")
-    s3_prefix = os.getenv("S3_PREFIX", "annotations/")
+    s3_bucket = os.getenv("S3_BUCKET", DEFAULT_S3_BUCKET)
+    s3_prefix = os.getenv("S3_PREFIX", DEFAULT_S3_PREFIX)
     if s3_bucket:
         try:
             s3 = boto3.client(
@@ -133,7 +156,7 @@ def save_annotation(record: dict) -> None:
                 aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
                 aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
                 aws_session_token=os.getenv("AWS_SESSION_TOKEN"),
-                region_name=os.getenv("AWS_REGION", "us-east-1"),
+                region_name=os.getenv("AWS_REGION", DEFAULT_AWS_REGION),
             )
             # Append JSONL to a single annotations object (like append_jsonl)
             key = f"{s3_prefix.rstrip('/')}/annotations.jsonl"
@@ -148,6 +171,7 @@ def save_annotation(record: dict) -> None:
                 else:
                     raise
             s3.put_object(Bucket=s3_bucket, Key=key, Body=new_body, ContentType="text/plain; charset=utf-8")
+            logger.info(f"Annotation saved to S3: {key}")
         except (BotoCoreError, ClientError, Exception) as e:
             # Fall back to local on any error
             logger.error(f"Error saving annotation to S3: {e}")
@@ -271,6 +295,16 @@ def main():
 
     # Show instructions before starting
     if not st.session_state.get("started"):
+        # Surface S3 status for deploys
+        status = s3_healthcheck()
+        if status["enabled"]:
+            if status["ok"]:
+                logger.info(status["message"])
+                st.success(status["message"])
+            else:
+                st.warning(status["message"])
+        else: 
+            st.warning(f"S3 is not configured. Annotations will be saved locally+ {status['message']}")
         render_instructions(total_tasks)
         return
 
