@@ -56,9 +56,9 @@ class QSalience:
     def __init__(self, model_name="mistralai/Mistral-7B-Instruct-v0.2", qlora_model="lingchensanwen/mistral-ins-generation-best-balanced"):
         self.model, self.tokenizer = merge_qlora_model(model_name, qlora_model)
         self.model.to(device)
-        
-    def predict_salience(self, article, question):
-        system_prompt = "<s>### System:\nBelow is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n\n"
+
+    def format_input(self, article, question):
+        system_prompt = "<s>### System:\nBelow is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n"
         
         input_data = {
             "article": article,
@@ -78,8 +78,14 @@ Score = 5 means the question is related to the article and should definitely be 
 ### Input: {input_data}
 
 ### Response: """.format(instruction=instruction, input_data=input_data)
+
+        return system_prompt + input_text
+
+    def predict_salience(self, article, question):
+
+        input_text = self.format_input(article, question)
         
-        inputs = self.tokenizer.encode(system_prompt + input_text, return_tensors='pt', padding=True, truncation=True).to(device)
+        inputs = self.tokenizer.encode(input_text, return_tensors='pt', padding=True, truncation=True).to(device)
         outputs = self.model.generate(inputs, max_length=4096, do_sample=False)
         
         for output in outputs:
@@ -92,4 +98,22 @@ Score = 5 means the question is related to the article and should definitely be 
 
             return prediction
     
-    
+    def batch_predict_salience(self, articles, questions, batch_size=16):
+        
+        input_texts = [self.format_input(article, question) for article, question in zip(articles, questions)]
+        predictions = []    
+        
+        for i in range(0, len(input_texts), batch_size):
+            batch_input_texts = input_texts[i:i + batch_size]
+            batch_inputs = self.tokenizer.encode(batch_input_texts, return_tensors='pt', padding=True, truncation=True).to(device)
+            batch_outputs = self.model.generate(batch_inputs, max_length=4096, do_sample=False)
+            for output in batch_outputs:
+                output_text = self.tokenizer.decode(output, skip_special_tokens=True)
+                match = re.search(r'Response:[\s\S]*?(\d+)', output_text)
+                if match:
+                    prediction = int(match.group(1))
+                else:
+                    prediction = -1  # Default value for cases where the pattern is not found
+                predictions.append(prediction)
+                
+        return predictions

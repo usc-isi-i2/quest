@@ -14,6 +14,8 @@ transformers
 bitsandbytes
 protobuf
 sentencepiece
+streamlit
+boto3
 
 # optional packages for testing and package management
 pytest

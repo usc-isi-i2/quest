@@ -96,7 +96,7 @@ def main():
         questions_by_section = {}
 
         for i in range(1, len(llm_parsing["sections"]) + 1):
-            if i > 3: 
+            if i < 4 or i > 7: 
                 continue 
                         
             anchor = llm_parsing["sections"][str(i)]["content"]
@@ -139,25 +139,30 @@ def main():
                 )
         
         if questions_by_section:
-        
-            if args.use_document_for_simulate:
-                _, all_score, baseline_score = simulator.generate(
-                    eval_questions=exam_questions,
-                    sections=llm_parsing["sections"],
-                    generated_questions=questions_by_section,
-                    test=True,
-                    single_only=True,
-                )
-            else:
-                utilities, _, baseline_score = simulator.generate(
-                    eval_questions=exam_questions,
-                    sections={},
-                    generated_questions=questions_by_section,
-                    test=True,
-                    single_only=True,
-                )
+            try: 
+                if args.use_document_for_simulate:
+                    _, all_score, baseline_score = simulator.generate(
+                        eval_questions=exam_questions,
+                        sections=llm_parsing["sections"],
+                        generated_questions=questions_by_section,
+                        test=True,
+                        single_only=True,
+                    )
+                else:
+                    utilities, _, baseline_score = simulator.generate(
+                        eval_questions=exam_questions,
+                        sections={},
+                        generated_questions=questions_by_section,
+                        test=True,
+                        single_only=True,
+                    )
+            except Exception as e:
+                logger.error(f"[utility] Simulation failed: {e}")
+                continue
                 
         for qa in chapter_qa_pairs:
+            if qa["qid"] not in utilities:
+                continue
             qa["utility"] = utilities[qa["qid"]]["utility"]
             if "saliency" not in qa:    
                 qa["saliency"] = get_saliency_score(llm_generator, context, qa["question"], qa["answer"])

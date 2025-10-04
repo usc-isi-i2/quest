@@ -102,7 +102,7 @@ rsync_args=(
   --exclude=venv/
   --exclude=.env
   --exclude=.conda/
-  --include=requirements-quietstar.txt
+  --exclude=.git/
   --include=requirements.txt
   --exclude=*.txt
 )
