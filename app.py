@@ -34,13 +34,16 @@ INSTRUCTIONS_MD = (
     """
 Please follow these steps for each task:
 
-1. Read the learning material on the left (expand Prior sections if needed). The current section (Anchor) is always visible.
+1. Read the learning material on the left (expand Prior sections if needed). The current section is always visible.
 2. Review the three Questions in the middle (they relate to the current section).
-3. Answer the Exam Questions on the right using only the learning material. 
+3. Answer the Exam Problems on the right with help from the questions in the middle. You will not be graded on correctness, but please put in a reasonable effort to answer them. We are most interested in how you value the Questions. 
 4. After all exam answers are filled, rate each Question on its usefulness (1-5) and interestingness (1-5) and choose a unique preference rank (1–3).
-    1. Usefulness: how useful was the question for getting a deeper understanding of the content and answering the exam questions? [5 = directly useful,  = somewhat useful, indirectly useful, 1 = not useful at all]
-    2. Interestingness: how interesting was the question, regardless of the exam questions? [5 = most interesting, 3 = somewhat interesting, 1 = not interesting]
-    3. Ranking: provide a unique ranking (can't be tied) for each question based on its usefulness. Provide a brief explanation for your ranking. [1 = most preferred, 2 = somewhat preferred, 3 = least preferred] 
+    1. Usefulness: how useful was the question for getting a deeper understanding of the content and answering the exam problems? 
+        - [5 = directly useful,  = somewhat useful, indirectly useful, 1 = not useful at all]
+    2. Interestingness: how interesting was the question, regardless of the exam problems? 
+        - [5 = most interesting, 3 = somewhat interesting, 1 = not interesting]
+    3. Ranking: provide a unique ranking (can't be tied) for each question based on its usefulness. Provide a brief explanation for your ranking. **Only need to fill in for one of the boxes**
+        - [1 = most preferred, 2 = somewhat preferred, 3 = least preferred] 
 5. Submit to move to the next task. A progress bar appears at the top.
 
 You will complete one sample at a time. Progress bar will be shown at the top.
@@ -238,15 +241,15 @@ def render_instructions(total_tasks: int) -> bool:
 
 
     with demo_right:
-        st.markdown("**Exam Questions (example)**")
+        st.markdown("**Exam Problems (example)**")
         with st.container(border=True):
-            st.markdown("**Exam Q1.** Define the law of demand in one sentence.")
+            st.markdown("**Exam P1.** Define the law of demand in one sentence.")
             st.text_area("Your answer (disabled in preview)", disabled=True, key="preview_exam_q1")
         with st.container(border=True):
-            st.markdown("**Exam Q2.** Briefly explain a factor that can shift the demand curve.")
+            st.markdown("**Exam P2.** Briefly explain a factor that can shift the demand curve.")
             st.text_area("Your answer (disabled in preview)", disabled=True, key="preview_exam_q2")
             
-            st.caption("Survey (usefulness, interestingness, rank) appears after you answer all exam questions.")
+            st.caption("Survey (usefulness, interestingness, rank) appears after you answer all exam problems.")
     st.markdown("---")
 
     if st.button("Start annotation task", type="primary"):
@@ -331,21 +334,21 @@ def main():
 
     # Prepare exam first to control survey rendering conditionally
     with col_exam:
-        st.subheader("Exam Questions")
+        st.subheader("Exam Problems")
         exam_questions = get_exam_questions(sample)
         exam_answers = {}
         for i, q in enumerate(exam_questions, start=1):
             if i > 2: 
                 continue 
             with st.container(border=True):
-                st.markdown(f"**Exam Q{i}.** {q['question']}")
+                st.markdown(f"**Exam P{i}.** {q['question']}")
                 key_suffix = f"s{sample_idx}_exam_{i}"
-                exam_answers[q["id"]] = st.text_area(f"Your answer to Exam Q{i}", key=key_suffix)
+                exam_answers[q["id"]] = st.text_area(f"Your answer to Exam P{i}", key=key_suffix)
 
         exam_complete = all(str(ans).strip() for ans in exam_answers.values()) if exam_answers else False
 
         if not exam_complete:
-            st.info("Answer exam questions (right) to unlock survey.")
+            st.info("Answer exam problems (right) to unlock survey.")
 
     with col_context:
         st.subheader("Learning Material")
@@ -414,7 +417,7 @@ def main():
         # Must answer all exam questions
         for _qid, ans in exam_answers.items():
             if not str(ans).strip():
-                st.warning("Please answer all exam questions before submitting.")
+                st.warning("Please answer all exam problems before submitting.")
                 return False
         # All ranks must be selected and be a permutation of {1,2,3}
         if any(v is None for v in preferences.values()) or set(preferences.values()) != {1, 2, 3}:
