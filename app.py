@@ -37,7 +37,10 @@ Please follow these steps for each task:
 1. Read the learning material on the left (expand Prior sections if needed). The current section (Anchor) is always visible.
 2. Review the three Questions in the middle (they relate to the current section).
 3. Answer the Exam Questions on the right using only the learning material. 
-4. After all exam answers are filled, rate each Question (usefulness, interestingness) and choose a unique preference rank (1–3).
+4. After all exam answers are filled, rate each Question on its usefulness (1-5) and interestingness (1-5) and choose a unique preference rank (1–3).
+    1. Usefulness: how useful was the question for getting a deeper understanding of the content and answering the exam questions? [5 = directly useful,  = somewhat useful, indirectly useful, 1 = not useful at all]
+    2. Interestingness: how interesting was the question, regardless of the exam questions? [5 = most interesting, 3 = somewhat interesting, 1 = not interesting]
+    3. Ranking: provide a unique ranking (can't be tied) for each question based on its usefulness. Provide a brief explanation for your ranking. [1 = most preferred, 2 = somewhat preferred, 3 = least preferred] 
 5. Submit to move to the next task. A progress bar appears at the top.
 
 You will complete one sample at a time. Progress bar will be shown at the top.
@@ -368,6 +371,7 @@ def main():
 
         survey_responses = []
         preferences = {}
+        explanations = {}
         for idx, q in enumerate(gen_questions, start=1):
             with st.container(border=True):
                 st.markdown(f"**Q{idx}.**")
@@ -390,6 +394,9 @@ def main():
                             index=0,
                             key=f"{key_root}_rank",
                         )
+                        
+                        explanation = st.text_area("Brief explanation for your rank [only need to fill in for one of the boxes]", key=f"{key_root}_explanation")
+                        
                     rank_value = int(rank) if isinstance(rank, int) else None
                     survey_responses.append({
                         "index": idx,
@@ -397,9 +404,11 @@ def main():
                         "usefulness": usefulness,
                         "interestingness": interestingness,
                         "rank": rank_value,
+                        "explanation": explanation,
                     })
                     preferences[idx] = rank_value
                     
+                    explanations[f"{key_root}_explanation"] = explanation
 
     def validate_inputs():
         # Must answer all exam questions
@@ -411,6 +420,12 @@ def main():
         if any(v is None for v in preferences.values()) or set(preferences.values()) != {1, 2, 3}:
             st.warning("Please provide a unique ranking 1, 2, 3 for the three questions.")
             return False
+        
+        # At least one explanation must be filled in
+        if not any(str(explanation).strip() for explanation in explanations.values()):
+            st.warning("Please provide a brief explanation for your rank in at least one of the text areas.")
+            return False
+                
         return True
 
     if st.button("Submit and Next", type="primary"):
