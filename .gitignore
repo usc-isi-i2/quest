@@ -5,3 +5,4 @@ q_metrics/
 *.jsonl
 .streamlit/secrets.toml
 annotations/
+*.json

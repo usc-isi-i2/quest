@@ -128,7 +128,7 @@ def build_article_context(chapter_data, section):
     return context + anchor
 
 
-def compute_saliency_with_fallback(qsalience, llm_generator, article, question, answer, qid):
+def compute_saliency_with_fallback(qsalience, llm_generator, article, question, answer, qid=None):
     """Compute saliency score with fallback to zero-shot approach."""
     try:
         salience = qsalience.predict_salience(article, question)

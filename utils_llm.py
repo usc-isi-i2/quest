@@ -1,6 +1,6 @@
-from enum import StrEnum
+from enum import Enum
 import json
-from typing import Literal
+from typing import Literal, Optional, Union
 
 from loguru import logger
 from openai import OpenAI
@@ -13,6 +13,7 @@ from openai.types.chat import (
 )
 from pydantic import BaseModel
 import tiktoken
+from utils_cost_tracking import get_cost_tracker
 
 
 class LLMMessage(BaseModel):
@@ -25,7 +26,7 @@ class TokenUsage(BaseModel):
     output_tokens: int
 
 
-class StopReasonEnum(StrEnum):
+class StopReasonEnum(str, Enum):
     LENGTH = "length"
     STOP = "stop"
     CONTENT_FILTER = "content_filter"
@@ -47,11 +48,14 @@ class LLMJSONResponse(BaseModel):
 
 
 class OpenAIGenerator:
-    def __init__(self, oai_api_key: str, model: str):
+    def __init__(self, oai_api_key: str, model: str, operation_type: str = "llm_call", section_id: Optional[str] = None, chapter_id: Optional[str] = None):
         self.model = model
         self.sync_client = OpenAI(api_key=oai_api_key)
         self.timeout = 100.0
         self.max_retries = 3
+        self.operation_type = operation_type
+        self.section_id = section_id
+        self.chapter_id = chapter_id
 
     def _convert_messages(self, messages: list[LLMMessage]) -> list[ChatCompletionMessageParam]:
         message_params: list[ChatCompletionMessageParam] = []
@@ -83,7 +87,7 @@ class OpenAIGenerator:
 
     def _convert_stop_reason(
         self,
-        stop_reason: str | None,
+        stop_reason: Union[str, None],
     ) -> StopReasonEnum:
         if stop_reason is None:
             raise ValueError("stop_reason should not be None.")
@@ -116,6 +120,21 @@ class OpenAIGenerator:
         assert completion.usage is not None, "message.usage should not be None."
         input_tokens = completion.usage.prompt_tokens
         output_tokens = completion.usage.completion_tokens
+        
+        # Track cost and usage
+        try:
+            tracker = get_cost_tracker()
+            tracker.track_call(
+                model=self.model,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                operation_type=self.operation_type,
+                section_id=self.section_id,
+                chapter_id=self.chapter_id
+            )
+        except Exception as e:
+            logger.warning(f"Failed to track cost: {e}")
+        
         return LLMResponse(
             content=content,
             model=self.model,

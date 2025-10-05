@@ -17,19 +17,19 @@ class QuestionGenerator(BaseAgent[tuple[list[str], str]]):
         # Base prompt (for final example)
         if mode == "cot":
             base_prompt = f"""article: {context}
-Student is currently reading the sentence: {anchor}.
+Student is currently reading the section: {anchor}.
 
-First, think explicitly what information should be given to the student to help them understand the sentence better.
-Next, generate a question that helps the student understand the sentence better based on your thoughts.
+First, think explicitly what kind of information should be given to the student to help them understand the section better. 
+Next, generate {num_questions} nonoverlapping questions that help the student understand the section better based on your thoughts. The questions should not be directly answerable with information already presented in the article or the current section. At a minimum, the answer to the questions should require paraphrasing information in the current section.
 Output in following JSON format:
 {{
 "thought": < thought >,
-"question": < question >
+"questions": [question1, question2, ...]
 }}"""
         else:
             base_prompt = f"""article: {context}
-Student is currently reading the sentence: {anchor}.
-Generate {num_questions} nonoverlapping questions that helps the student understand the sentence better.
+Student is currently reading the section: {anchor}.
+Generate {num_questions} nonoverlapping questions that would help the student understand the current section better. The questions should not be directly answerable with information already presented in the article or the current section. At a minimum, the answer to the questions should require paraphrasing information in the current section.
 Output in following JSON format:
 {{
 "questions": [question1, question2, ...]
@@ -44,8 +44,8 @@ Output in following JSON format:
                 few_question = example["question"]
 
                 full_prompt += f"""article: {few_context}
-Student is currently reading the sentence: {few_anchor}.
-Generate a question that helps the student understand the sentence better.
+Student is currently reading the section: {few_anchor}.
+Generate a question that helps the student understand the section better.
 Output in following JSON format:
 {{"question": "{few_question}"}}
 
