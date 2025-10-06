@@ -107,7 +107,7 @@ class CostTracker:
         self.calls.append(call)
         
         # Log the call
-        logger.info(f"API Call - Model: {model}, Tokens: {input_tokens + output_tokens} "
+        logger.debug(f"API Call - Model: {model}, Tokens: {input_tokens + output_tokens} "
                    f"(in: {input_tokens}, out: {output_tokens}), Cost: ${total_cost:.6f}, "
                    f"Operation: {operation_type}")
         

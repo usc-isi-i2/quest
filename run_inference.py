@@ -128,14 +128,14 @@ def main():
                 logger.info(f"  Answer: {q['answer']}")
 
         if args.use_document_for_simulate:
-            _, all_score, baseline_score = simulator.generate(
+            utilities, all_score, baseline_score = simulator.generate(
                 eval_questions=exam_questions,
                 sections=llm_parsing["sections"],
                 generated_questions=questions_by_section,
                 test=True,
             )
         else:
-            _, all_score, baseline_score = simulator.generate(
+            utilities, all_score, baseline_score = simulator.generate(
                 eval_questions=exam_questions,
                 sections={},
                 generated_questions=questions_by_section,

@@ -17,18 +17,6 @@ def parse_args():
 
     parser.add_argument("--subject", type=str, required=True, help="Single subject name (e.g., chemistry) or 'all'")
 
-    parser.add_argument("--iterations", type=int, default=1)
-    parser.add_argument("--threshold", type=float, default=0.2)
-    parser.add_argument(
-        "--use_document_for_simulate", action="store_true", help="Flag to use document sections for the simulator"
-    )
-    parser.add_argument(
-        "--num_questions_per_section",
-        type=int,
-        default=1,
-        help="Number of questions to generate per section (default: 1)",
-    )
-
     return parser.parse_args()
 
 
@@ -83,26 +71,28 @@ def main():
 
             for i in range(1, len(llm_parsing["sections"]) + 1):
                 anchor = llm_parsing["sections"][str(i)]["content"]
+                prompt = f"""article: {context}
+    Student is currently reading the sentence: {anchor}.
+    Generate a question that helps the student understand the sentence better.
+    Output in following JSON format:
+    {{
+        \"question\": question
+    }}"""
                 context += f"\n{anchor}"
+                
+                relevant_exam_questions = [q for q in exam_questions.values() if str(i) in q["relevant_sections"]]
 
-            prompt = f"""article: {context}
-Student is currently reading the sentence: {anchor}.
-Generate a question that helps the student understand the sentence better.
-Output in following JSON format:
-{{
-    \"question\": question
-}}"""
-            for _, question in exam_questions.items():
-                direct_train_data.append(
-                    {
-                        "messages": [
-                            {"role": "user", "content": prompt},
-                            {"role": "assistant", "content": json.dumps({"question": question["question"]})},
-                        ]
-                    }
-                )
+                for question in relevant_exam_questions:
+                    direct_train_data.append(
+                        {
+                            "messages": [
+                                {"role": "user", "content": prompt},
+                                {"role": "assistant", "content": json.dumps({"question": question["question"]})},
+                            ]
+                        }
+                    )
 
-    subjects_str = "_".join(args.subject)
+    subjects_str = "_".join(subjects)
 
     # Save fine-tune data with relevant naming
     fine_tune_data_filename = f"metadata/train_data_{subjects_str}_sft.jsonl"

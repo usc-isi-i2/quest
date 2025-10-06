@@ -19,7 +19,12 @@ class Evaluator(BaseAgent[dict[str, dict[str, str]]]):
 Here is the document: {document}"""
 
             results = {}
-            for q_id, instance in predictions.items():
+            for q_id, instance in predictions.items():                
+                if "prediction" not in instance:
+                    logger.error(f"[evaluator] Missing 'prediction' key for q_id: {q_id}")
+                    logger.error(f"[evaluator] Available keys: {list(instance.keys())}")
+                    raise KeyError(f"Missing 'prediction' key for question {q_id}")
+                
                 question = instance["question"]
                 answer = instance["answer"]
                 prediction = instance["prediction"]

@@ -11,10 +11,12 @@ from utils_file import read_jsonl, write_json, write_jsonl
 from utils_llm import OpenAIGenerator
 from utils_cost_tracking import get_cost_tracker, reset_cost_tracker
 from loguru import logger
-from run_eval import compute_saliency_with_fallback, compute_eig_score
+from run_eval import compute_saliency_with_fallback, compute_eig_score, build_article_context
 from functools import partial
 from tqdm import tqdm
 from collections import defaultdict
+import pandas as pd
+
 DEFAULT_THRESHOLDS = {
     "utility": 0.1,
     "saliency": 4,
@@ -49,30 +51,46 @@ def write_metadata(iteration, subjects, threshold, base_model, fine_tuned_model,
     write_json(metadata, metadata_file)
     logger.info(f"Metadata saved to {metadata_file}")
 
-def score_questions(questions_by_section, scoring_function, threshold, prompts_by_section):
-    high_metric_questions = []
-    for section_id, questions in questions_by_section.items():
-        for q_idx, question in enumerate(questions):
-            article = question["context"] + question["anchor"]
-            metric = scoring_function(article, question["question"], question["answer"])
-            if metric > threshold:
-                high_metric_questions.append(
-                    {
-                        "qid": f"{section_id}_Q{q_idx+1}",
-                        "question": question["question"],
-                        "answer": question["answer"],
-                        "section": section_id,
-                        "metric": metric,
-                        "prompt": prompts_by_section[section_id],
-                    }
-                )
-    return high_metric_questions
+def score_questions(questions, scoring_function, metric_type):
+    for q in questions: 
+        article = q["context"] + q["anchor"]
+        metric = scoring_function(article, q["question"], q["answer"])
+        q[metric_type] = metric
+
+
+def append_jsonl(new_data: list[dict], data_filename: str):
+    with open(data_filename, "a") as f:
+        for q in new_data:
+            f.write(json.dumps(q, ensure_ascii=False) + "\n")
+
+def append_generated_data(questions: list[dict], data_filename: str):
+    """Append generated data to file."""
+    if len(questions) == 0:
+        return
+    
+    append_jsonl(questions, data_filename)
+    logger.info(f"Appended {len(questions)} generated questions to {data_filename}")
+
+def form_trainig_data(questions, prompt_template):
+    """Form training data for OpenAI API from questions."""
+    if len(questions) == 0:
+        return
+    
+    training_data = [
+        {
+            "messages": [
+                {"role": "user", "content": prompt_template.format(context=item["context"], anchor=item["anchor"], n_questions=1)},
+                {"role": "assistant", "content": json.dumps({"questions": [item["question"]]})},
+            ]
+        }
+        for item in questions
+    ]
+    
+    return training_data 
                 
-                    
-
-
 def main():
     args = parse_args()
+    data = read_jsonl("data/data.jsonl")
     
     # Initialize cost tracking
     reset_cost_tracker()
@@ -98,13 +116,17 @@ def main():
         raise ValueError("Only one metric can be used for training data selection when running multiple iterations")
         
     logger.info(f"Using thresholds: {thresholds}")
+    qsalience = None
     if "saliency" in args.metrics:
         logger.info("Loading QSalience model (this may take 30-60 seconds)...")
         from utils_qsalience import QSalience
         qsalience = QSalience()
         logger.info("✅ QSalience model loaded successfully")
         
-    data = read_jsonl("data/data.jsonl")
+    generated_questions_data_filename = f"metadata/generated_questions.jsonl"
+    generated_questions_data = [] if not os.path.exists(generated_questions_data_filename) else read_jsonl(generated_questions_data_filename)
+    generated_question_df = pd.DataFrame(generated_questions_data)
+
     current_model_name = args.model_name
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
 
@@ -133,24 +155,32 @@ def main():
         simulator = Simulator(generator=sim_llm)
 
         high_metric_questions = defaultdict(list)
-
+        
         for subject in subjects:
             subject_data = [d for d in data if d["subject"] == subject]
             subject_data = sorted(subject_data, key=lambda x: x["chapter"])
             train_data = subject_data[:-5]
  
             if args.test:
-                train_data = train_data[:1]
+                train_data = train_data[:2]
+                args.single_only_utility = True
 
             for chapter_data in tqdm(train_data, desc="Processing chapters"):
+                chapter_id = chapter_data["chapter"]
+                logger.info(f"Processing chapter {chapter_id}")
+                
                 sections = chapter_data["llm_parsed_results"]["sections"]
                 exam_questions = chapter_data["llm_parsed_results"]["questions"]
                 context, questions_by_section, prompts_by_section = "", {}, {}
 
                 for i in range(1, len(sections) + 1):                    
-                    if args.test and i > 3:
+                    if args.test and i > 1:
                         continue 
-                        
+                    
+                    # if # questions in generated_questions_data is greater than args.num_questions_per_section for this chapter and section, skip 
+                    if not generated_question_df.empty and len(generated_question_df[(generated_question_df["chapter"] == chapter_id) & (generated_question_df["section"] == i)]) >= args.num_questions_per_section:
+                        continue
+                    
                     anchor = sections[str(i)]["content"]
                     questions, prompt = question_generator.generate(
                         anchor=anchor, context=context, num_questions=args.num_questions_per_section
@@ -163,6 +193,9 @@ def main():
                     questions_by_section[str(i)] = answers
                     prompts_by_section[str(i)] = prompt
 
+                # Process each metric and append data immediately
+                chapter_questions = []
+                
                 if "utility" in args.metrics:
                     try:
                         sections_or_empty = sections if args.use_document_for_simulate else {}
@@ -177,25 +210,40 @@ def main():
                         continue
 
                     for qid, u in utilities.items():
-                        if u["utility"] > thresholds["utility"]:
-                            high_metric_questions["utility"].append(
-                                {
-                                    "qid": qid,
-                                    "question": u["question"],
-                                    "answer": u["answer"],
-                                    "section": u["section"],
-                                    "metric": u["utility"],
-                                    "prompt": prompts_by_section[u["section"]],
-                                }
-                            )
-                if "saliency" in args.metrics:
+                        
+                        chapter_questions.append(
+                            {
+                                "qid": qid,
+                                "question": u["question"],
+                                "answer": u["answer"],
+                                "subject": subject,
+                                "chapter": chapter_id,
+                                "section": u["section"],
+                                "utility": u["utility"],
+                                "context": "".join([sections[str(i)]["content"] for i in range(1, int(u["section"]))]),
+                                "anchor": sections[str(u["section"])]["content"],
+                                "iteration": iteration,
+                            }
+                        )
+                
+                # Load existing questions for this chapter, which may not have eig and saliency scores 
+                if not generated_question_df.empty:
+                    existing_chapter_questions = generated_question_df[
+                        (generated_question_df["chapter"] == chapter_id)
+                    ].to_dict(orient="records")
+                    chapter_questions.extend(existing_chapter_questions)
+                    logger.info(f"Loaded {len(existing_chapter_questions)} existing questions for chapter {chapter_id}")
+                else:
+                    logger.info(f"No existing questions found for chapter {chapter_id}")
+                
+                if "saliency" in args.metrics and qsalience is not None:
                     sal_llm = OpenAIGenerator(
                         model=current_model_name, 
                         oai_api_key=os.getenv("OPENAI_API_KEY", ""),
                         operation_type="saliency_scoring"
                     )
                     scoring_function = partial(compute_saliency_with_fallback, qsalience, sal_llm)
-                    high_metric_questions["saliency"] = score_questions(questions_by_section, scoring_function, thresholds["saliency"], prompts_by_section)
+                    score_questions(chapter_questions, scoring_function, "saliency")
                 
                 if "eig" in args.metrics:
                     eig_llm = OpenAIGenerator(
@@ -204,40 +252,46 @@ def main():
                         operation_type="eig_scoring"
                     )
                     scoring_function = partial(compute_eig_score, eig_llm.sync_client)
-                    high_metric_questions["eig"] = score_questions(questions_by_section, scoring_function, thresholds["eig"], prompts_by_section)
-
-        training_data_paths = {}
-        for metric, questions in high_metric_questions.items():
-            if len(questions) == 0:
-                logger.info(f"No high-{metric} questions found. Skipping.")
-                continue
-            else: 
-                logger.info(f"Found {len(questions)} high-{metric} questions to use for fine-tuning.")
-
-            subjects_str = "_".join(args.subject)
-            threshold_str = str(thresholds[metric]).replace(".", "p")
-            data_filename = f"metadata/train_data_{metric}_{subjects_str}_iter_{iteration}_thresh_{threshold_str}_n{args.num_questions_per_section}.jsonl"
-            if args.test:
-                data_filename = data_filename.replace(".jsonl", "_test.jsonl")
+                    score_questions(chapter_questions, scoring_function, "eig")
                 
-            training_data = [
-                {
-                    "messages": [
-                        {"role": "user", "content": item["prompt"]},
-                        {"role": "assistant", "content": json.dumps({"question": item["question"]})},
-                    ]
-                }
-                for item in high_metric_questions
-            ]
+                # Append all questions after processing this chapter
+                append_generated_data(chapter_questions, generated_questions_data_filename)
 
-            write_jsonl(training_data, data_filename)
-            logger.info(f"Saved training data: {data_filename}")
-            training_data_paths[metric] = data_filename
+        if args.test: 
+            logger.info("Test mode. Stopping.")
+            break
             
         fine_tuning_job_ids = {}
-        for metric, data_filename in training_data_paths.items():
-            logger.info("\nUploading file for fine-tuning...")
-            uploaded_file_id = client.files.create(file=open(data_filename, "rb"), purpose="fine-tune").id
+        training_data_files = {}
+        generated_questions_data = read_jsonl(generated_questions_data_filename)
+        
+        for metric in args.metrics: 
+            # Filter questions that meet the threshold for this metric
+            if args.test: 
+                filtered_questions = [q for q in generated_questions_data if metric in q and q[metric]][:2]
+            else: 
+                filtered_questions = [q for q in generated_questions_data if metric in q and q[metric] > thresholds[metric]]
+            
+            logger.info(f"Filtered {len(filtered_questions)} out of {len(generated_questions_data)} {metric} questions (threshold: {thresholds[metric]})")
+            
+            if len(filtered_questions) == 0:
+                logger.info(f"No {metric} questions meet the threshold. Skipping fine-tuning for {metric}.")
+                continue
+            
+            # Convert filtered data to training format
+            training_data = form_trainig_data(filtered_questions, question_generator.base_prompt)
+            
+            # Write training data to a temporary file
+            finetuning_data_name = f"metadata/training_data_{metric}_threshold{thresholds[metric]}_iter_{iteration}.jsonl"
+            training_data_files[metric] = finetuning_data_name
+            write_jsonl(training_data, finetuning_data_name)
+            
+            if args.test:
+                logger.info("Test mode. Skipping fine-tuning.")
+                continue 
+            
+            logger.info("Uploading file for fine-tuning...")
+            uploaded_file_id = client.files.create(file=open(finetuning_data_name, "rb"), purpose="fine-tune").id
 
             logger.info("Creating fine-tuning job...")
             job_id = client.fine_tuning.jobs.create(training_file=uploaded_file_id, model=current_model_name).id
@@ -253,13 +307,14 @@ def main():
                     break
                 time.sleep(15)
 
+            data_filename = training_data_files[metric]
             if status == "succeeded":
                 new_model = client.fine_tuning.jobs.retrieve(job_id).fine_tuned_model
                 if not new_model:
                     logger.info("No fine-tuned model returned. Stopping.")
                     break
                 logger.info(f"Fine-tuning succeeded: {new_model}")
-                metadata_file = data_filename.replace("data", "metadata")
+                metadata_file = data_filename.replace("_data_", "_metadata_")
                 write_metadata(iteration, args.subject, thresholds[metric], current_model_name, new_model, metadata_file)
                 current_model_name = new_model
             else:

@@ -1,10 +1,20 @@
 from agents.base import BaseAgent
 from utils_llm import LLMMessage
+from typing import Union
 
 
 class QuestionGenerator(BaseAgent[tuple[list[str], str]]):
     def __init__(self, generator):
         super().__init__(generator)
+        
+        self.base_prompt = """article: {context}
+Student is currently reading the section: {anchor}.
+Generate {n_questions} question(s) that would help the student understand the current section better. The question should not be directly answerable with information already presented in the article or the current section. At a minimum, the answer to the question should require paraphrasing information in the current section.
+Output in following JSON format:
+{{
+"questions": [question1, question2, ...]
+}}"""
+
 
     def generate(
         self,
@@ -12,7 +22,7 @@ class QuestionGenerator(BaseAgent[tuple[list[str], str]]):
         context: str,
         num_questions: int,
         mode: str = "default",  # default | cot | fewshot
-        few_shot_candidates: list | None = None,
+        few_shot_candidates: Union[list, None] = None,
     ) -> tuple[list[str], str]:
         # Base prompt (for final example)
         if mode == "cot":
@@ -20,7 +30,7 @@ class QuestionGenerator(BaseAgent[tuple[list[str], str]]):
 Student is currently reading the section: {anchor}.
 
 First, think explicitly what kind of information should be given to the student to help them understand the section better. 
-Next, generate {num_questions} nonoverlapping questions that help the student understand the section better based on your thoughts. The questions should not be directly answerable with information already presented in the article or the current section. At a minimum, the answer to the questions should require paraphrasing information in the current section.
+Next, generate {num_questions} nonoverlapping question(s) that help the student understand the section better based on your thoughts. The questions should not be directly answerable with information already presented in the article or the current section. At a minimum, the answer to the questions should require paraphrasing information in the current section.
 Output in following JSON format:
 {{
 "thought": < thought >,
@@ -29,7 +39,7 @@ Output in following JSON format:
         else:
             base_prompt = f"""article: {context}
 Student is currently reading the section: {anchor}.
-Generate {num_questions} nonoverlapping questions that would help the student understand the current section better. The questions should not be directly answerable with information already presented in the article or the current section. At a minimum, the answer to the questions should require paraphrasing information in the current section.
+Generate {num_questions} nonoverlapping question(s) that would help the student understand the current section better. The questions should not be directly answerable with information already presented in the article or the current section. At a minimum, the answer to the questions should require paraphrasing information in the current section.
 Output in following JSON format:
 {{
 "questions": [question1, question2, ...]
@@ -47,7 +57,7 @@ Output in following JSON format:
 Student is currently reading the section: {few_anchor}.
 Generate a question that helps the student understand the section better.
 Output in following JSON format:
-{{"question": "{few_question}"}}
+{{"questions": ["{few_question}"]}}
 
 """
 

@@ -80,12 +80,19 @@ Response answers in following JSON format (key: Exam question number, value: you
             ]
 
             response = self.generator.generate_json(messages=simulation_messages, temperature=0.0, top_p=1.0, seed=42)
+            
+            logger.debug(f"[learner] Response content: {response.content}")
+            logger.debug(f"[learner] Response type: {type(response.content)}")
 
-            for q_id, answer in response.content.items():
-                if q_id in eval_questions:
-                    eval_questions[q_id]["prediction"] = answer
-                else:
-                    eval_questions.pop(q_id, None)  # Safe deletion without KeyError
+            if response.content and isinstance(response.content, dict):
+                for q_id, answer in response.content.items():
+                    if q_id in eval_questions:
+                        eval_questions[q_id]["prediction"] = answer
+                    else:
+                        eval_questions.pop(q_id, None)  # Safe deletion without KeyError
+            else:
+                logger.error(f"[learner] Invalid response content: {response.content}")
+                raise ValueError(f"Invalid response format from learner: {response.content}")
 
         except Exception as e:
             logger.error(f"[learner] {e}")
