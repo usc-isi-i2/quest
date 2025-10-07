@@ -53,9 +53,10 @@ def write_metadata(iteration, subjects, threshold, base_model, fine_tuned_model,
 
 def score_questions(questions, scoring_function, metric_type):
     for q in questions: 
-        article = q["context"] + q["anchor"]
-        metric = scoring_function(article, q["question"], q["answer"])
-        q[metric_type] = metric
+        if metric_type not in q: 
+            article = q["context"] + q["anchor"]
+            metric = scoring_function(article, q["question"], q["answer"])
+            q[metric_type] = metric
 
 
 def append_jsonl(new_data: list[dict], data_filename: str):
@@ -104,6 +105,7 @@ def main():
     else:
         subjects = [args.subject]
         logger.info(f"Using subject: {args.subject}")
+    subjects_str = "_".join(subjects)
 
     if args.thresholds is None:
         thresholds = DEFAULT_THRESHOLDS
@@ -178,9 +180,9 @@ def main():
                         continue 
                     
                     # if # questions in generated_questions_data is greater than args.num_questions_per_section for this chapter and section, skip 
-                    if not generated_question_df.empty and len(generated_question_df[(generated_question_df["chapter"] == chapter_id) & (generated_question_df["section"] == i)]) >= args.num_questions_per_section:
+                    if not generated_question_df.empty and len(generated_question_df[(generated_question_df["chapter"] == chapter_id) & (generated_question_df["section"] == str(i))]) >= args.num_questions_per_section:
                         continue
-                    
+                                        
                     anchor = sections[str(i)]["content"]
                     questions, prompt = question_generator.generate(
                         anchor=anchor, context=context, num_questions=args.num_questions_per_section
@@ -195,8 +197,8 @@ def main():
 
                 # Process each metric and append data immediately
                 chapter_questions = []
-                
-                if "utility" in args.metrics:
+                                
+                if "utility" in args.metrics and questions_by_section:
                     try:
                         sections_or_empty = sections if args.use_document_for_simulate else {}
                         utilities, _, _ = simulator.generate(
@@ -265,14 +267,15 @@ def main():
         training_data_files = {}
         generated_questions_data = read_jsonl(generated_questions_data_filename)
         
+        
         for metric in args.metrics: 
             # Filter questions that meet the threshold for this metric
             if args.test: 
-                filtered_questions = [q for q in generated_questions_data if metric in q and q[metric]][:2]
+                filtered_questions = [q for q in generated_questions_data if metric in q and q["subject"] in subjects][:2]
             else: 
-                filtered_questions = [q for q in generated_questions_data if metric in q and q[metric] > thresholds[metric]]
+                filtered_questions = [q for q in generated_questions_data if metric in q and q[metric] > thresholds[metric] and q["subject"] in subjects]
             
-            logger.info(f"Filtered {len(filtered_questions)} out of {len(generated_questions_data)} {metric} questions (threshold: {thresholds[metric]})")
+            logger.info(f"Filtered {len(filtered_questions)} out of {len(generated_questions_data)} {metric} questions (threshold: {thresholds[metric]}, subjects: {subjects})")
             
             if len(filtered_questions) == 0:
                 logger.info(f"No {metric} questions meet the threshold. Skipping fine-tuning for {metric}.")
@@ -282,7 +285,7 @@ def main():
             training_data = form_trainig_data(filtered_questions, question_generator.base_prompt)
             
             # Write training data to a temporary file
-            finetuning_data_name = f"metadata/training_data_{metric}_threshold{thresholds[metric]}_iter_{iteration}.jsonl"
+            finetuning_data_name = f"metadata/training_data_{subjects_str}_{metric}_threshold{thresholds[metric]}_iter_{iteration}.jsonl"
             training_data_files[metric] = finetuning_data_name
             write_jsonl(training_data, finetuning_data_name)
             
@@ -316,7 +319,8 @@ def main():
                 logger.info(f"Fine-tuning succeeded: {new_model}")
                 metadata_file = data_filename.replace("_data_", "_metadata_")
                 write_metadata(iteration, args.subject, thresholds[metric], current_model_name, new_model, metadata_file)
-                current_model_name = new_model
+                if args.iterations > 1: 
+                    current_model_name = new_model
             else:
                 logger.info("Fine-tuning failed. Stopping.")
                 finetuning_failed = True

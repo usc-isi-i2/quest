@@ -46,7 +46,7 @@ class Learner(BaseAgent[dict[str, dict[str, str]]]):
    - Clearly show how your reasoning follows from the [LEARNING MATERIALS].
    - If the question asks about something not covered in the [LEARNING MATERIALS], do not provide an answer or guess. Instead, respond exactly with:
      ```
-     I don’t know. I have not been studied on this.
+     I don't know. I have not learned about this.
      ```
    - Do not use information from outside the [LEARNING MATERIALS].
 

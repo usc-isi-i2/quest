@@ -22,6 +22,7 @@ def parse_args():
     parser.add_argument("--use_document_for_simulate", action="store_true", help="Use document sections in simulation")
     parser.add_argument("--num_questions_per_section", type=int, default=1, help="Questions to generate per section")
     parser.add_argument("--run_on_train", action="store_true", help="Run on train data, mainly used to produce data for analysis")
+    parser.add_argument("--nickname", type=str, default="", help="Nickname for the run")
     return parser.parse_args()
 
 
@@ -43,10 +44,12 @@ def main():
     data = read_jsonl("data/data.jsonl")
     subject = args.subject
 
+    foldername = args.qg_model_name if not args.nickname else args.nickname
+
     # Create output paths
-    os.makedirs(f"output/{args.qg_model_name}", exist_ok=True)
-    out_file = f"output/{args.qg_model_name}/{subject}_{args.mode}_performance_results.jsonl" if not args.run_on_train else f"output/{args.qg_model_name}/{subject}_{args.mode}_performance_results_on-train:{args.run_on_train}.jsonl"
-    qa_output_file = f"output/{args.qg_model_name}/{subject}_{args.mode}_qa_pairs.jsonl"
+    os.makedirs(f"output/{foldername}", exist_ok=True)
+    out_file = f"output/{foldername}/{subject}_{args.mode}_performance_results.jsonl" if not args.run_on_train else f"output/{foldername}/{subject}_{args.mode}_performance_results_on-train:{args.run_on_train}.jsonl"
+    qa_output_file = f"output/{foldername}/{subject}_{args.mode}_qa_pairs.jsonl"
     question_generator_performances = []
     qa_pairs = []
     few_shot_candidates = []

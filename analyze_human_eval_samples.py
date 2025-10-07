@@ -74,6 +74,7 @@ def print_section_header(title):
 
 annotations = read_jsonl("annotations.jsonl")
 
+qual_feedbacks = [] 
 # create a dataframe from annotations 
 df_samples =[] 
 for ann in annotations: 
@@ -135,6 +136,18 @@ for ann in annotations:
         "rank": eig_q_results["rank"],
         "explanation": eig_q_results["explanation"],
     }
+    
+    qual_feedbacks.append({
+        "eig_question": eig_q["question"],
+        "eig_answer": eig_q["answer"],
+        "eig_explanation": eig_q_results["explanation"],
+        "sal_question": sal_q["question"],
+        "sal_answer": sal_q["answer"],
+        "sal_explanation": sal_q_results["explanation"],
+        "util_question": util_q["question"],    
+        "util_answer": util_q["answer"],
+        "util_explanation": util_q_results["explanation"],
+    })
 
     df_samples.append(util_q_sample)
     df_samples.append(sal_q_sample)

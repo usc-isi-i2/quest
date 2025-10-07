@@ -221,7 +221,7 @@ def render_instructions(total_tasks: int) -> bool:
     
     st.markdown("---")
     st.subheader("Example preview")
-    demo_left, demo_mid, demo_right = st.columns(3, gap="large")
+    demo_left, demo_mid, demo_right = st.columns(3, gap="small")
 
     with demo_left:
         with st.expander("Prior sections (example, optional)", expanded=False):
@@ -306,11 +306,10 @@ def main():
         if status["enabled"]:
             if status["ok"]:
                 logger.info(status["message"])
-                st.success(status["message"])
             else:
-                st.warning(status["message"])
+                logger.info(status["message"])
         else: 
-            st.warning(f"S3 is not configured. Annotations will be saved locally+ {status['message']}")
+            logger.info(f"S3 is not configured. Annotations will be saved locally+ {status['message']}")
         render_instructions(total_tasks)
         return
 
@@ -330,7 +329,7 @@ def main():
     st.caption(f"Completed {st.session_state.completed} / {total_tasks}")
 
     # 3-column layout: context/anchor (1/3), generated (1/3), exam (1/3)
-    col_context, col_generated, col_exam = st.columns(3, gap="large")
+    col_context, col_generated, col_exam = st.columns(3, gap="small")
 
     # Prepare exam first to control survey rendering conditionally
     with col_exam:
