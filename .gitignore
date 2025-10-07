@@ -6,3 +6,4 @@ q_metrics/
 .streamlit/secrets.toml
 annotations/
 *.json
+set_env.sh
