@@ -287,6 +287,16 @@ input[aria-label="Enter your name to begin"] {
 
 def main():
     st.set_page_config(page_title="Question Quality Human Evaluation", layout="wide")
+    
+    # Hide GitHub icon
+    st.markdown("""
+    <style>
+    #GithubIcon {
+        visibility: hidden;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
     st.title("Question Quality Human Evaluation")
 
     if not DATA_PATH.exists():
