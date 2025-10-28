@@ -288,7 +288,7 @@ input[aria-label="Enter your name to begin"] {
 def main():
     st.set_page_config(page_title="Question Quality Human Evaluation", layout="wide")
     
-    # Hide GitHub icon
+    # Hide GitHub icon and Streamlit UI elements
     st.markdown("""
     <style>
     #GithubIcon {
@@ -296,6 +296,32 @@ def main():
     }
     
     #MainMenu {
+        visibility: hidden;
+    }
+    
+    .stApp > header {
+        visibility: hidden;
+    }
+    
+    .stApp > div[data-testid="stToolbar"] {
+        visibility: hidden;
+    }
+    
+    .stApp > div[data-testid="stDecoration"] {
+        visibility: hidden;
+    }
+    
+    .stApp > div[data-testid="stStatusWidget"] {
+        visibility: hidden;
+    }
+    
+    /* Hide the hamburger menu */
+    .stApp > div[data-testid="stSidebar"] > div[data-testid="stSidebarUserContent"] {
+        visibility: hidden;
+    }
+    
+    /* Hide footer */
+    footer {
         visibility: hidden;
     }
     </style>
